@@ -49,6 +49,10 @@ RUN chmod +x /docker-entrypoint-initdb.d/02-db-config.sh
 COPY ./postgres/03-init-ssl.sh /docker-entrypoint-initdb.d/03-init-ssl.sh
 RUN chmod +x /docker-entrypoint-initdb.d/03-init-ssl.sh
 
+# Copy wrapper script for SSL and make it executable
+COPY ./postgres/wrapper.sh /usr/local/bin/wrapper.sh
+RUN chmod +x /usr/local/bin/wrapper.sh
+
 # Custom entrypoint (SSH/Barman) then Railway SSL wrapper
 COPY ./postgres/custom-docker-entrypoint.sh /custom-docker-entrypoint.sh
 RUN chmod +x /custom-docker-entrypoint.sh

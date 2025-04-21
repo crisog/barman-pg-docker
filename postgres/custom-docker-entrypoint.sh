@@ -44,7 +44,7 @@ EOF
   chmod 600 /var/lib/postgresql/.ssh/config
   chown postgres:postgres /var/lib/postgresql/.ssh/config
 
-  # finally start sshd
+  # Finally start sshd in the background
   /usr/sbin/sshd
   echo "sshd started"
 }
@@ -71,13 +71,15 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
-# 3. Bootstrap everything, then hand off to your SSL wrapper
+# 3. Bootstrap everything, then hand off to the wrapper script
 # -----------------------------------------------------------------------------
 main() {
+  # Setup SSH server
   setup_ssh
   apply_archive_settings
 
-  # now exec the original SSL wrapper, passing along any args (e.g. "postgres")
+  # Now exec the wrapper.sh script, passing along any args (e.g. "postgres")
+  echo "Handing off to wrapper script with arguments: $@"
   exec /usr/local/bin/wrapper.sh "$@"
 }
 
