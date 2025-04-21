@@ -61,7 +61,7 @@ apply_archive_settings() {
       echo "listen_addresses = '*'"
       echo "wal_level = hot_standby"
       echo "archive_mode = on"
-      echo "archive_command = 'rsync -a %p barman@barman-pg:/backup/barman/postgres-source-db/incoming/%f'"
+      echo "archive_command = 'rsync -a %p barman@barman.railway.internal:/backup/barman/postgres-source-db/incoming/%f'"
       echo "max_wal_senders = 2"
       echo "max_replication_slots = 2"
     } >> "$PG_CONF"
