@@ -1,5 +1,5 @@
 # Postgres
-FROM postgres:16
+FROM ghcr.io/railwayapp-templates/postgres-ssl:16
 ENV POSTGRES_USER dbadmin	 
 ENV POSTGRES_DB db
 ENV POSTGRES_PASSWORD passw0rd
