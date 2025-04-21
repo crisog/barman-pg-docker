@@ -25,13 +25,13 @@ RUN su - postgres -c "mkdir -p ~postgres/.ssh && chmod 700 ~postgres/.ssh && tou
 
 # Custom config
 RUN mkdir -p /var/lib/postgresql/config/
-COPY pg_hba.conf /var/lib/postgresql/config/
+COPY ./postgres/pg_hba.conf /var/lib/postgresql/config/
 RUN chown -R postgres: /var/lib/postgresql/config/
 
-COPY db-config.sh /docker-entrypoint-initdb.d/
+COPY ./postgres/db-config.sh /docker-entrypoint-initdb.d/
 
 # Custom entrypoint
-COPY docker-entrypoint.sh /
+COPY ./postgres/docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 22 5432
