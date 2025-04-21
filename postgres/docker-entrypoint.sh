@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-# ----------------------------
-# 1. Synchronous SSH setup
-# ----------------------------
+# -----------------------------------------------------------------------------
+# 1. SSH setup for root and postgres, then start sshd
+# -----------------------------------------------------------------------------
 setup_ssh() {
-  # -- root user
+  # root
   mkdir -p /root/.ssh
   if [ -n "$SSH_PRIVATE_KEY" ]; then
     printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -19,7 +19,7 @@ setup_ssh() {
   chmod 600 /root/.ssh/id_rsa*
   chmod 600 /root/.ssh/authorized_keys
 
-  # -- postgres user
+  # postgres
   su postgres -c "bash -lc '
     mkdir -p ~/.ssh
     if [ -n \"\$SSH_PRIVATE_KEY\" ]; then
@@ -35,7 +35,7 @@ setup_ssh() {
     chmod 600 ~/.ssh/authorized_keys
   '"
 
-  # Disable host‑checking for postgres → barman host
+  # disable host‑key checking for your Barman host
   cat <<EOF > /var/lib/postgresql/.ssh/config
 Host barman-pg-*
   StrictHostKeyChecking no
@@ -43,46 +43,41 @@ Host barman-pg-*
 EOF
   chmod 600 /var/lib/postgresql/.ssh/config
   chown postgres:postgres /var/lib/postgresql/.ssh/config
-}
 
-# ----------------------------
-# 2. Ensure WAL‑archive config
-# ----------------------------
-apply_archive_settings() {
-  PG_CONF="$PGDATA/postgresql.conf"
-  # Safety: bail if PGDATA isn't initialized
-  [ -f "$PG_CONF" ] || return
-
-  # Only append if not already present
-  if ! grep -q "^archive_mode = on" "$PG_CONF"; then
-    {
-      echo ""
-      echo "# barman WAL archive settings"
-      echo "listen_addresses = '*'"
-      echo "wal_level = hot_standby"
-      echo "archive_mode = on"
-      echo "archive_command = 'rsync -a %p barman@barman.railway.internal:/backup/barman/postgres-source-db/incoming/%f'"
-      echo "max_wal_senders = 2"
-      echo "max_replication_slots = 2"
-    } >> "$PG_CONF"
-  fi
-}
-
-# ----------------------------
-# 3. Start SSHD
-# ----------------------------
-start_sshd() {
+  # finally start sshd
   /usr/sbin/sshd
   echo "sshd started"
 }
 
-# ----------------------------
-# 4. Exec Railway wrapper → postgres
-# ----------------------------
+# -----------------------------------------------------------------------------
+# 2. Append WAL‑archive settings if they're not already present
+# -----------------------------------------------------------------------------
+apply_archive_settings() {
+  PG_CONF="$PGDATA/postgresql.conf"
+  [ -f "$PG_CONF" ] || return
+
+  if ! grep -q "^archive_mode = on" "$PG_CONF"; then
+    cat >> "$PG_CONF" <<EOF
+
+# --- barman archive configuration ---
+listen_addresses = '*'
+wal_level = hot_standby
+archive_mode = on
+archive_command = 'rsync -a %p barman@barman.railway.internal:/backup/barman/postgres-source-db/incoming/%f'
+max_wal_senders = 2
+max_replication_slots = 2
+EOF
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# 3. Bootstrap everything, then hand off to your SSL wrapper
+# -----------------------------------------------------------------------------
 main() {
   setup_ssh
-  start_sshd
   apply_archive_settings
+
+  # now exec the original SSL wrapper, passing along any args (e.g. "postgres")
   exec /usr/local/bin/wrapper.sh "$@"
 }
 
