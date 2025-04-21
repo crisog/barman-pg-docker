@@ -2,17 +2,12 @@
 FROM ghcr.io/railwayapp-templates/postgres-ssl:16
 
 # Require build args; fail early if missing
-ARG POSTGRES_USER
-ARG POSTGRES_DB
-ARG POSTGRES_PASSWORD
-ARG PGDATA
-RUN if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_DB" ] || [ -z "$POSTGRES_PASSWORD" ] || [ -z "$PGDATA" ]; then \
-      echo "ERROR: Missing required build args" >&2; exit 1; \
-    fi
-ENV POSTGRES_USER=${POSTGRES_USER}
-ENV POSTGRES_DB=${POSTGRES_DB}
-ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-ENV PGDATA=${PGDATA}
+ENV POSTGRES_USER="postgres"
+ENV POSTGRES_DB="postgres"
+ENV POSTGRES_PASSWORD="postgres"
+ENV PGDATA="/var/lib/postgresql/data/pgdata"
+ENV POSTGRES_INITDB_ARGS="--data-checksums"
+ENV POSTGRES_HOST_AUTH_METHOD=md5
 ENV POSTGRES_INITDB_ARGS="--data-checksums"
 ENV POSTGRES_HOST_AUTH_METHOD=md5
 
