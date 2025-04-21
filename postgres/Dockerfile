@@ -52,5 +52,5 @@ COPY ./postgres/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 22 5432
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/custom-docker-entrypoint.sh"]
 CMD ["postgres"]
