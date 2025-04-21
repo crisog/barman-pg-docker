@@ -37,6 +37,24 @@ function customize {
         chmod 600 ~postgres/.ssh/id_rsa
         chmod 600 ~postgres/.ssh/authorized_keys"
 
+    # Create PGDATA directory if using subdirectory approach
+    if [ ! -z "$PGDATA" ]; then
+        # Check if parent directory exists (volume is mounted)
+        parent_dir=$(dirname "$PGDATA")
+        if [ ! -d "$parent_dir" ]; then
+            # If parent directory doesn't exist, create it (no volume mounted)
+            mkdir -p "$parent_dir"
+            chown postgres:postgres "$parent_dir"
+        fi
+
+        # Now create the PGDATA subdirectory if it doesn't exist
+        if [ ! -d "$PGDATA" ]; then
+            mkdir -p "$PGDATA"
+            chmod 700 "$PGDATA"
+            chown postgres:postgres "$PGDATA"
+        fi
+    fi
+
     # Start SSH server
     /usr/sbin/sshd 2>&1
 }
