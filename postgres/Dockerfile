@@ -44,7 +44,7 @@ COPY ./postgres/01-init-custom-config.sh /docker-entrypoint-initdb.d/01-init-cus
 RUN chmod +x /docker-entrypoint-initdb.d/01-init-custom-config.sh
 
 # Role/perm seed script (runs during initdb)
-COPY ./postgres/db-config.sh /docker-entrypoint-initdb.d/02-db-config.sh
+COPY ./postgres/02-db-config.sh /docker-entrypoint-initdb.d/02-db-config.sh
 RUN chmod +x /docker-entrypoint-initdb.d/02-db-config.sh
 
 # Custom entrypoint (SSH/Barman) then Railway SSL wrapper
