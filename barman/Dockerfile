@@ -1,11 +1,11 @@
 # Dockerfile for Barman
 
 # Basic Setup
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg2 cron openssh-server openssh-client && rm -rf /var/lib/apt/lists/*
-RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" >> /etc/apt/sources.list.d/pgdg.list' \ 
-	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - ) \ 
+RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \ 
+	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - || wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg) \ 
 	&& apt-get update && apt-get install -y barman \ 	
 	&& rm -rf /var/lib/apt/lists/*
 
