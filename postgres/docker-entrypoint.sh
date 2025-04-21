@@ -62,6 +62,6 @@ customize() {
 echo "[$(date)] Running SSH setup in background"
 customize &
 
-# Call the original postgres entrypoint
-echo "[$(date)] Executing original postgres entrypoint: $@"
-exec /usr/local/bin/docker-entrypoint.sh "$@"
+# Finally, exec Railway's SSL wrapper (initdb, init-ssl.sh, then postgres)
+echo "[$(date)] Executing wrapper.sh: $@"
+exec /usr/local/bin/wrapper.sh "$@"
