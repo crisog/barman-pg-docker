@@ -16,7 +16,7 @@ cat <<EOF >> "$PGDATA/postgresql.conf"
 listen_addresses = '*'
 wal_level = hot_standby
 archive_mode = on
-archive_command = 'rsync -a %p barman@barman-pg-docker-6ed36822.railway.internal:/backup/barman/postgres-source-db/incoming/%f || exit 0'
+archive_command = 'rsync -a %p barman@barman-pg-docker-6ed36822.railway.internal:/backup/barman/postgres-source-db/incoming/%f'
 max_wal_senders = 2
 max_replication_slots = 2
 hba_file = '$PGDATA/pg_hba.conf'
