@@ -42,5 +42,6 @@ function customize {
     echo "SSH daemon started"
 }
 
-# Run custom setup and then the standard PostgreSQL entrypoint
-customize & /usr/local/bin/docker-entrypoint.sh "$@"
+# Run custom setup and then hand off to Railway's SSL wrapper
+customize &
+exec /usr/local/bin/wrapper.sh "$@"
