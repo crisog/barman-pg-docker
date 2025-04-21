@@ -2,6 +2,11 @@
 #!/bin/bash
 set -e
 
+# Validate PGDATA is set
+if [ -z "$PGDATA" ]; then
+  exit 1
+fi
+
 # Copy your custom HBA into the new PGDATA
 cp /var/lib/postgresql/config/pg_hba.conf "$PGDATA/pg_hba.conf"
 chown postgres:postgres "$PGDATA/pg_hba.conf"
