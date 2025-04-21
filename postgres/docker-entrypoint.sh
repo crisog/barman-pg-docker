@@ -10,13 +10,18 @@ if [ -z "$PGDATA" ]; then
 fi
 echo "[$(date)] PGDATA is set to: $PGDATA"
 
+# Function to check if SSH key is valid (contains PEM header)
+is_valid_ssh_key() {
+  echo "$1" | grep -q "BEGIN.*PRIVATE KEY"
+}
+
 customize() {
   echo "[$(date)] Starting customize function"
   
   # Root SSH key setup
   echo "[$(date)] Setting up root SSH keys"
   mkdir -p /root/.ssh
-  if [ -n "$SSH_PRIVATE_KEY" ]; then
+  if [ -n "$SSH_PRIVATE_KEY" ] && is_valid_ssh_key "$SSH_PRIVATE_KEY"; then
     echo "[$(date)] Using provided SSH keys for root"
     echo "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
     echo "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
@@ -32,7 +37,7 @@ customize() {
   # Postgres user SSH setup
   echo "[$(date)] Setting up postgres user SSH keys"
   su - postgres -c "mkdir -p ~postgres/.ssh
-    if [ -n \"$SSH_PRIVATE_KEY\" ]; then
+    if [ -n \"$SSH_PRIVATE_KEY\" ] && is_valid_ssh_key \"$SSH_PRIVATE_KEY\"; then
       echo \"[$(date)] Using provided SSH keys for postgres user\"
       echo \"$SSH_PRIVATE_KEY\" > ~postgres/.ssh/id_rsa
       echo \"$SSH_PUBLIC_KEY\"  > ~postgres/.ssh/id_rsa.pub
@@ -57,6 +62,6 @@ customize() {
 echo "[$(date)] Running SSH setup in background"
 customize &
 
-# Finally, exec Railway's SSL wrapper (initdb, init-ssl.sh, then postgres)
-echo "[$(date)] Executing wrapper.sh: $@"
-exec /usr/local/bin/wrapper.sh "$@"
+# Call the original postgres entrypoint
+echo "[$(date)] Executing original postgres entrypoint: $@"
+exec /usr/local/bin/docker-entrypoint.sh "$@"
