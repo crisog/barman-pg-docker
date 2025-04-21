@@ -4,7 +4,7 @@ set -e
 BARMAN_CONF="/etc/barman.conf"
 TEMP_CONF="/tmp/barman.conf"
 
-function customize {
+function setup_ssh {
     # Create SSH directory if it doesn't exist
     mkdir -p /root/.ssh
     
@@ -41,21 +41,34 @@ function customize {
     chmod 600 /var/lib/barman/.ssh/id_rsa
     chmod 600 /var/lib/barman/.ssh/authorized_keys
     chown -R barman: /var/lib/barman/.ssh
+}
 
+function setup_directories {
     # Setup barman directories
     mkdir -p /var/log/barman && chown -R barman: /var/log/barman
     mkdir -p /backup/barman && chown -R barman: /backup/barman
     mkdir -p /etc/barman.d && chown -R barman: /etc/barman.d
-
-    # Start cron service
-    /etc/init.d/cron start
-
-    # Start SSH daemon
-    /usr/sbin/sshd -D 2>&1 &
 }
 
-# Run customization
-customize
+# Setup SSH keys
+setup_ssh
 
-# Execute the command passed to the script
+# Setup directories
+setup_directories
+
+# Start cron service
+/etc/init.d/cron start
+
+# Make sure SSH is running properly
+# Start sshd WITHOUT the -D option so it goes to background
+/usr/sbin/sshd
+echo "SSH daemon started"
+
+# Check if SSH is actually listening
+sleep 2
+netstat -tuln | grep ":22 "
+echo "SSH listening status check completed"
+
+# Now execute the command (likely "barman")
+echo "Starting main command: $@"
 exec "$@"
