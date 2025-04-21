@@ -32,7 +32,7 @@ setup_ssh() {
 
   # disable host‑key checking for barman host
   cat > /var/lib/postgresql/.ssh/config <<EOF
-Host barman-pg-*
+Host barman.railway.internal barman*
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
 EOF
