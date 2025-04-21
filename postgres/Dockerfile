@@ -1,7 +1,5 @@
-# PostgreSQL w/ SSL (Railway) + custom Barman/SSH
-FROM ghcr.io/railwayapp-templates/postgres-ssl:16
+FROM postgres:16
 
-# Require build args; fail early if missing
 ENV POSTGRES_USER="postgres"
 ENV POSTGRES_DB="postgres"
 ENV POSTGRES_PASSWORD="postgres"
@@ -46,6 +44,10 @@ RUN chmod +x /docker-entrypoint-initdb.d/01-init-custom-config.sh
 # Role/perm seed script (runs during initdb)
 COPY ./postgres/02-db-config.sh /docker-entrypoint-initdb.d/02-db-config.sh
 RUN chmod +x /docker-entrypoint-initdb.d/02-db-config.sh
+
+# SSL setup script
+COPY ./postgres/03-init-ssl.sh /docker-entrypoint-initdb.d/03-init-ssl.sh
+RUN chmod +x /docker-entrypoint-initdb.d/03-init-ssl.sh
 
 # Custom entrypoint (SSH/Barman) then Railway SSL wrapper
 COPY ./postgres/custom-docker-entrypoint.sh /custom-docker-entrypoint.sh
