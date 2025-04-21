@@ -34,7 +34,8 @@ COPY ./postgres/pg_hba.conf /var/lib/postgresql/config/
 RUN chown -R postgres: /var/lib/postgresql/config/
 
 # Create a custom PostgreSQL config file
-RUN echo "wal_level = hot_standby" > /tmp/postgresql.conf && \
+RUN echo "listen_addresses = '*'" > /tmp/postgresql.conf && \ 
+    echo "wal_level = hot_standby" > /tmp/postgresql.conf && \
     echo "archive_mode = on" >> /tmp/postgresql.conf && \
     echo "archive_command = 'rsync -a %p barman@barman-pg-docker-6ed36822.railway.internal:/backup/barman/postgres-source-db/incoming/%f || exit 0'" >> /tmp/postgresql.conf && \
     echo "max_wal_senders = 2" >> /tmp/postgresql.conf && \
