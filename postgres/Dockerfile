@@ -48,8 +48,8 @@ COPY ./postgres/02-db-config.sh /docker-entrypoint-initdb.d/02-db-config.sh
 RUN chmod +x /docker-entrypoint-initdb.d/02-db-config.sh
 
 # Custom entrypoint (SSH/Barman) then Railway SSL wrapper
-COPY ./postgres/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY ./postgres/custom-docker-entrypoint.sh /custom-docker-entrypoint.sh
+RUN chmod +x /custom-docker-entrypoint.sh
 
 EXPOSE 22 5432
 ENTRYPOINT ["/custom-docker-entrypoint.sh"]
