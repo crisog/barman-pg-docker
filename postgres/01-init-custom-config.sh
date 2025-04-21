@@ -1,17 +1,14 @@
-# 01-init-custom-config.sh
 #!/bin/bash
 set -e
 
-# Validate PGDATA is set
-if [ -z "$PGDATA" ]; then
-  exit 1
-fi
+# ensure PGDATA is set
+[ -z "$PGDATA" ] && exit 1
 
-# Copy your custom HBA into the new PGDATA
+# copy in your pg_hba and update perms
 cp /var/lib/postgresql/config/pg_hba.conf "$PGDATA/pg_hba.conf"
 chown postgres:postgres "$PGDATA/pg_hba.conf"
 
-# Append core settings to the freshly initialized postgresql.conf
+# append core settings
 cat <<EOF >> "$PGDATA/postgresql.conf"
 listen_addresses = '*'
 wal_level = hot_standby
