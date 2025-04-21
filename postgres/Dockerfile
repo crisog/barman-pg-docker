@@ -53,4 +53,4 @@ RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 22 5432
 ENTRYPOINT ["/docker-entrypoint.sh"]
-# No CMD: Railway’s wrapper.sh will default to `postgres --port=5432`
+CMD ["postgres"]
