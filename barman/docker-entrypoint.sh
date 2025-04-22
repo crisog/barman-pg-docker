@@ -42,13 +42,34 @@ function customize {
     mkdir -p /backup/barman/pg-primary-db/incoming
     chown -R barman:barman /backup/barman
 
-    chown -R barman:barman /etc/barman.d
-    chmod 600 /etc/barman.d/pg-primary-db.conf
+    mkdir -p /etc/barman.d
 
     if [ -n "$POSTGRES_PASSWORD" ]; then
         BARMAN_HASHED_PASS=$(hash_password "$POSTGRES_PASSWORD" "barman")
         
-        sed -i "s/password=.*\"/password=$BARMAN_HASHED_PASS\"/" /etc/barman.d/pg-primary-db.conf
+        cat > /etc/barman.d/pg-primary-db.conf <<EOF
+[pg-primary-db]
+description = "Primary PostgreSQL on Railway"
+conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=$BARMAN_HASHED_PASS
+streaming_conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=$BARMAN_HASHED_PASS replication=true
+streaming_archiver = on
+archiver = off
+backup_method = postgres
+slot_name = barman_slot
+
+# Retention policies
+retention_policy_mode = auto
+retention_policy     = RECOVERY WINDOW OF 7 days
+wal_retention_policy = main
+
+# Cloud hooks - sync WALs and backups to S3/R2
+# Ensure R2_ACCOUNT_ID and R2_BUCKET are set
+pre_archive_retry_script = /usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives pg-primary-db \\\${WAL_FILE}
+post_backup_retry_script = /usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups pg-primary-db
+EOF
+        
+        chown barman:barman /etc/barman.d/pg-primary-db.conf
+        chmod 600 /etc/barman.d/pg-primary-db.conf
         
         echo "primary-pg.railway.internal:*:*:barman:$BARMAN_HASHED_PASS" > /var/lib/barman/.pgpass
         chmod 0600 /var/lib/barman/.pgpass

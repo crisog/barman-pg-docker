@@ -1,22 +1,11 @@
-# Dockerfile for Barman
-
-# Basic Setup
 FROM debian:bookworm-slim
 
-# Build args for R2 and AWS credentials (pass at build or runtime)
-ARG R2_ACCOUNT_ID
-ARG R2_BUCKET
-
-ENV R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
-ENV R2_BUCKET=${R2_BUCKET}
-
 RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg2 cron openssh-server openssh-client && rm -rf /var/lib/apt/lists/*
-RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \ 
-	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - || wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg) \ 
-	&& apt-get update && apt-get install -y barman barman-cli-cloud \ 	
+RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
+	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - || wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg) \
+	&& apt-get update && apt-get install -y barman barman-cli-cloud \
 	&& rm -rf /var/lib/apt/lists/*
 
-# SSH Setup
 RUN mkdir -p /var/run/sshd
 RUN echo 'root:password' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -27,48 +16,27 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
-# Barman Setup
-# Create base directories but don't populate keys - this will be done in entrypoint
 RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
 	&& mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh \
 	&& mkdir -p /etc/barman.d \
 	&& mkdir -p /backup/barman \
-	&& chown -R barman: /etc/barman.conf \ 
-	&& echo "" >> /etc/cron.d/barman \ 
-	&& echo "0 3 * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \ 
+	&& chown -R barman: /etc/barman.conf \
+	&& echo "" >> /etc/cron.d/barman \
+	&& echo "0 3 * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \
 	&& touch /etc/crontab /etc/cron.*/* \
-	&& sed -i.bak 's_/var/lib/barman_/backup/barman_' /etc/barman.conf \ 
-	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*immediate_checkpoint = false-immediate_checkpoint = true-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*basebackup_retry_times = 0-basebackup_retry_times = 3-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*basebackup_retry_sleep = 30-basebackup_retry_sleep = 30-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*last_backup_maximum_age =-last_backup_maximum_age = 1 DAYS-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*minimum_redundancy = 1-minimum_redundancy = 1-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*retention_policy =$-retention_policy = RECOVERY WINDOW OF 1 WEEKS-' /etc/barman.conf \ 
-	&& sed -i.bak 's-^.*log_level = INFO$-log_level = DEBUG-' /etc/barman.conf \ 
-	&& echo "" >> /etc/barman.conf && echo "; For archive logs retention" >> /etc/barman.conf && echo "wal_retention_policy = main" >> /etc/barman.conf \ 
-	&& echo "" >> /etc/barman.conf && echo "; For automatic retention policies enforcement by the barman cron" >> /etc/barman.conf && echo "retention_policy_mode = auto" >> /etc/barman.conf \ 
+	&& sed -i.bak 's_/var/lib/barman_/backup/barman_' /etc/barman.conf \
+	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \
+	&& sed -i.bak 's-^.*immediate_checkpoint = false-immediate_checkpoint = true-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*basebackup_retry_times = 0-basebackup_retry_times = 3-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*basebackup_retry_sleep = 30-basebackup_retry_sleep = 30-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*last_backup_maximum_age =-last_backup_maximum_age = 1 DAYS-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*minimum_redundancy = 1-minimum_redundancy = 1-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*retention_policy =$-retention_policy = RECOVERY WINDOW OF 1 WEEKS-' /etc/barman.conf \
+	&& sed -i.bak 's-^.*log_level = INFO$-log_level = DEBUG-' /etc/barman.conf \
+	&& echo "" >> /etc/barman.conf && echo "; For archive logs retention" >> /etc/barman.conf && echo "wal_retention_policy = main" >> /etc/barman.conf \
+	&& echo "" >> /etc/barman.conf && echo "; For automatic retention policies enforcement by the barman cron" >> /etc/barman.conf && echo "retention_policy_mode = auto" >> /etc/barman.conf \
 	&& echo "" >> /etc/barman.conf && echo "; Incremental backup - Hard links" >> /etc/barman.conf && echo "reuse_backup = link" >> /etc/barman.conf
 
-# Barman Server Setup: per-server configuration via rsync
-RUN echo "[pg-primary-db]" > /etc/barman.d/pg-primary-db.conf \
-	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "ssh_command = ssh postgres@primary-pg.railway.internal" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "backup_method = rsync" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "incoming_wals_directory = /backup/barman/pg-primary-db/incoming" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "streaming_archiver = off" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "archiver = on" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "" >> /etc/barman.d/pg-primary-db.conf \
-	# Retention policies
-	&& echo "retention_policy_mode = auto" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "retention_policy     = RECOVERY WINDOW OF 7 days" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "wal_retention_policy = main" >> /etc/barman.d/pg-primary-db.conf \
-	# Cloud hooks - sync WALs and backups to S3
-	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives pg-primary-db \\${WAL_FILE}'" >> /etc/barman.d/pg-primary-db.conf \
-	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups pg-primary-db'" >> /etc/barman.d/pg-primary-db.conf
-
-# Custom entrypoint
 COPY ./barman/docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
 
