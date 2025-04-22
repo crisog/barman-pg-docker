@@ -5,10 +5,10 @@ BARMAN_USER=barman
 BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}${BARMAN_USER}" | md5sum | cut -d' ' -f1)
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
-  -- Create the barman user with minimal login privileges initially
-  CREATE USER $BARMAN_USER WITH LOGIN PASSWORD '$BARMAN_PASS';
-  -- Grant necessary roles for replication and backups (using pg_backup role from PG16+)
-  GRANT REPLICATION, pg_backup TO $BARMAN_USER;
+  -- Create the barman user with login and replication privileges
+  CREATE USER $BARMAN_USER WITH LOGIN REPLICATION PASSWORD '$BARMAN_PASS';
+  -- Grant necessary backup role (using pg_backup role from PG16+)
+  GRANT pg_backup TO $BARMAN_USER;
 EOSQL
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
