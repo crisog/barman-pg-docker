@@ -7,7 +7,7 @@ ENV PGDATA=/var/lib/postgresql/data \
 # 1) Install only what we need for recover + SSH
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      barman-cli \
+      barman \
       openssh-client \
       rsync \
  && rm -rf /var/lib/apt/lists/*
