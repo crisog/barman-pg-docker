@@ -22,16 +22,22 @@ chmod 755 /etc/barman.d
 cat > /etc/barman.conf <<EOF
 [barman]
 barman_home = /var/lib/barman
-configuration_files_directory = /etc/barman.d
 log_level = DEBUG
-EOF
+compression = gzip
+reuse_backup = link
+wal_retention_policy = main
+retention_policy_mode = auto
 
-cat > /etc/barman.d/postgres-source-db.conf <<EOF
 [postgres-source-db]
 description = Primary PostgreSQL on Railway
 conninfo = host=${BARMAN_HOST} user=barman dbname=postgres password=${BARMAN_PASS}
 ssh_command = ssh postgres@${BARMAN_HOST}
 backup_method = rsync
+incoming_wals_directory = /backup/barman/postgres-source-db/incoming
+streaming_archiver = off
+archiver = on
+retention_policy = RECOVERY WINDOW OF 7 days
+wal_retention_policy = main
 EOF
 
 chmod 600 /etc/barman.conf /etc/barman.d/postgres-source-db.conf
