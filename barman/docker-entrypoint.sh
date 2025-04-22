@@ -39,12 +39,12 @@ function customize {
     chown -R barman:barman /var/log/barman
 
     # Create and set up specific backup directories
-    mkdir -p /backup/barman/postgres-source-db/incoming
+    mkdir -p /backup/barman/pg-primary-db/incoming
     chown -R barman:barman /backup/barman
 
     # Set proper permissions for barman config directory
     chown -R barman:barman /etc/barman.d
-    chmod 600 /etc/barman.d/postgres-source-db.conf
+    chmod 600 /etc/barman.d/pg-primary-db.conf
 
     # Configure PostgreSQL password if provided
     if [ -n "$POSTGRES_PASSWORD" ]; then
@@ -71,7 +71,7 @@ EOF
 
     # ─── PostgreSQL connectivity check (optional) ────────────────────
     if [ "$1" = "barman" ]; then
-        su - barman -c "barman check postgres-source-db" \
+        su - barman -c "barman check pg-primary-db" \
           || echo "Warning: PostgreSQL connection check failed (server may still be starting)"
     fi
 

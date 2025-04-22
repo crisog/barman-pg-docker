@@ -35,7 +35,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
 	&& mkdir -p /backup/barman \
 	&& chown -R barman: /etc/barman.conf \ 
 	&& echo "" >> /etc/cron.d/barman \ 
-	&& echo "0 3 * * * barman /usr/bin/barman backup postgres-source-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \ 
+	&& echo "0 3 * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \ 
 	&& touch /etc/crontab /etc/cron.*/* \
 	&& sed -i.bak 's_/var/lib/barman_/backup/barman_' /etc/barman.conf \ 
 	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \ 
@@ -51,22 +51,22 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
 	&& echo "" >> /etc/barman.conf && echo "; Incremental backup - Hard links" >> /etc/barman.conf && echo "reuse_backup = link" >> /etc/barman.conf
 
 # Barman Server Setup: per-server configuration via rsync
-RUN echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
-	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "ssh_command = ssh postgres@primary-pg.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "backup_method = rsync" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "incoming_wals_directory = /backup/barman/postgres-source-db/incoming" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "streaming_archiver = off" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "archiver = on" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "" >> /etc/barman.d/postgres-source-db.conf \
+RUN echo "[pg-primary-db]" > /etc/barman.d/pg-primary-db.conf \
+	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "ssh_command = ssh postgres@primary-pg.railway.internal" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "backup_method = rsync" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "incoming_wals_directory = /backup/barman/pg-primary-db/incoming" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "streaming_archiver = off" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "archiver = on" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "" >> /etc/barman.d/pg-primary-db.conf \
 	# Retention policies
-	&& echo "retention_policy_mode = auto" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "retention_policy     = RECOVERY WINDOW OF 7 days" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "wal_retention_policy = main" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "retention_policy_mode = auto" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "retention_policy     = RECOVERY WINDOW OF 7 days" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "wal_retention_policy = main" >> /etc/barman.d/pg-primary-db.conf \
 	# Cloud hooks - sync WALs and backups to S3
-	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives postgres-source-db \\${WAL_FILE}'" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups postgres-source-db'" >> /etc/barman.d/postgres-source-db.conf
+	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives pg-primary-db \\${WAL_FILE}'" >> /etc/barman.d/pg-primary-db.conf \
+	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups pg-primary-db'" >> /etc/barman.d/pg-primary-db.conf
 
 # Custom entrypoint
 COPY ./barman/docker-entrypoint.sh /
