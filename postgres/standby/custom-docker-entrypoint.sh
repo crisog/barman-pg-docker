@@ -40,7 +40,7 @@ retention_policy = RECOVERY WINDOW OF 7 days
 wal_retention_policy = main
 EOF
 
-chmod 600 /etc/barman.conf /etc/barman.d/postgres-source-db.conf
+chmod 600 /etc/barman.conf
 
 # ── 2) SSH key setup for outbound to Barman ──────────────────────
 mkdir -p /root/.ssh
