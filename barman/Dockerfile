@@ -56,7 +56,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "conninfo = host=pg-docker.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "ssh_command = ssh postgres@pg-docker.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "backup_method = postgres" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "backup_method = rsync" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "incoming_wals_directory = /backup/barman/postgres-source-db/incoming" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "streaming_archiver = off" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "archiver = on" >> /etc/barman.d/postgres-source-db.conf \
