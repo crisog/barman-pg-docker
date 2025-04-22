@@ -94,8 +94,25 @@ EOF
     fi
 
     if [ "$1" = "barman" ]; then
-        su - barman -c "barman check pg-primary-db" \
-          || echo "Warning: PostgreSQL connection check failed (server may still be starting)"
+        echo "Performing initial Barman checks and setup..."
+        
+        if su - barman -c "barman check pg-primary-db"; then
+            echo "Barman check successful."
+            
+            su - barman -c "barman receive-wal pg-primary-db &"
+            echo "Barman receive-wal process started in background."
+            
+            if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
+                echo "No backups found — launching initial base backup"
+                su - barman -c "barman backup pg-primary-db"
+            else
+                echo "Existing backups found."
+            fi
+        else
+            echo "Warning: Barman check failed (server may still be starting). Initial backup will not be attempted now."
+            su - barman -c "barman receive-wal pg-primary-db &"
+            echo "Barman receive-wal process started in background."
+        fi
     fi
 
     /etc/init.d/cron start
@@ -108,13 +125,6 @@ customize "$@"
 echo "Starting main command: $@"
 if [ "$1" = "barman" ] && [ "$#" -eq 1 ]; then
     echo "Running barman in persistent mode"
-
-    su - barman -c "barman receive-wal pg-primary-db &"
-
-    if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
-        echo "No backups found — launching initial base backup"
-        su - barman -c "barman backup pg-primary-db"
-    fi
 
     while true; do
         barman list-servers
