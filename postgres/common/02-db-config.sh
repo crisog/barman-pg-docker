@@ -7,8 +7,15 @@ BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}${BARMAN_USER}" | md5sum | cut -d'
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
   -- Create the barman user with login and replication privileges
   CREATE USER $BARMAN_USER WITH LOGIN REPLICATION PASSWORD '$BARMAN_PASS';
-  -- Grant necessary backup role (using pg_backup role from PG16+)
-  GRANT pg_backup TO $BARMAN_USER;
+  -- Grant roles/privileges needed for backups
+  GRANT EXECUTE ON FUNCTION pg_backup_start(text, boolean) to $BARMAN_USER;
+  GRANT EXECUTE ON FUNCTION pg_backup_stop(boolean) to $BARMAN_USER;
+  GRANT EXECUTE ON FUNCTION pg_stop_backup(boolean, boolean) to $BARMAN_USER;
+  GRANT EXECUTE ON FUNCTION pg_switch_wal() to $BARMAN_USER;
+  GRANT EXECUTE ON FUNCTION pg_create_restore_point(text) to $BARMAN_USER;
+
+  GRANT pg_read_all_settings TO $BARMAN_USER;
+  GRANT pg_read_all_stats TO $BARMAN_USER;
 EOSQL
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
