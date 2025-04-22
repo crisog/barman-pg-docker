@@ -10,7 +10,6 @@ psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
   -- Grant roles/privileges needed for backups
   GRANT EXECUTE ON FUNCTION pg_backup_start(text, boolean) to $BARMAN_USER;
   GRANT EXECUTE ON FUNCTION pg_backup_stop(boolean) to $BARMAN_USER;
-  GRANT EXECUTE ON FUNCTION pg_stop_backup(boolean, boolean) to $BARMAN_USER;
   GRANT EXECUTE ON FUNCTION pg_switch_wal() to $BARMAN_USER;
   GRANT EXECUTE ON FUNCTION pg_create_restore_point(text) to $BARMAN_USER;
 
