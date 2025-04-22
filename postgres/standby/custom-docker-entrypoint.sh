@@ -23,14 +23,21 @@ else
 fi
 su postgres -c "chmod 600 ~/.ssh/id_rsa* ~/.ssh/authorized_keys"
 
+# Create SSH config for root user with no host key checking
 cat > /root/.ssh/config <<EOF
-Host barman*
+Host barman* barman.railway.internal
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
 EOF
 chmod 600 /root/.ssh/config
 
-su postgres -c "mkdir -p ~/.ssh && cat /root/.ssh/config > ~/.ssh/config && chmod 600 ~/.ssh/config"
+# Create the same SSH config directly for postgres user
+su postgres -c "cat > ~/.ssh/config <<EOF
+Host barman* barman.railway.internal
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+EOF
+chmod 600 ~/.ssh/config"
 
 /usr/sbin/sshd
 echo "SSH daemon started"
