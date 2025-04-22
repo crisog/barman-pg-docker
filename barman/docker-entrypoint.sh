@@ -82,16 +82,6 @@ EOF
 
 customize "$@"
 
-if [ -n "$RECOVERY_TIME" ]; then
-  echo "Triggering one-off recovery to ${RECOVERY_TIME}"
-  barman recover \
-    --remote-ssh-command "ssh postgres@${STANDBY_HOST:-standby-host}" \
-    --target-time "${RECOVERY_TIME}" \
-    postgres-source-db latest \
-    "${STANDBY_PGDATA:-/var/lib/postgresql/data/pgdata}" \
-  &
-fi
-
 echo "Starting main command: $@"
 if [ "$1" = "barman" ] && [ "$#" -eq 1 ]; then
     echo "Running barman in persistent mode"
