@@ -108,6 +108,14 @@ customize "$@"
 echo "Starting main command: $@"
 if [ "$1" = "barman" ] && [ "$#" -eq 1 ]; then
     echo "Running barman in persistent mode"
+
+    su - barman -c "barman receive-wal --daemon pg-primary-db"
+
+    if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
+        echo "No backups found — launching initial base backup"
+        su - barman -c "barman backup pg-primary-db"
+    fi
+
     while true; do
         barman list-servers
         sleep 60
