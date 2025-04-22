@@ -49,6 +49,20 @@ function customize {
     mkdir -p /etc/barman.d
     chown -R barman:barman /etc/barman.d
 
+    # ─── Barman PostgreSQL credentials ────────────────────────────────────
+    if [ ! -z "$POSTGRES_PASSWORD" ]; then
+        # Create .pgpass file with credentials
+        echo "pg-docker.railway.internal:*:*:barman:${POSTGRES_PASSWORD}" > /var/lib/barman/.pgpass
+        chmod 0600 /var/lib/barman/.pgpass
+        chown barman:barman /var/lib/barman/.pgpass
+    fi
+
+    # Check PostgreSQL connectivity
+    if [ "$1" = "barman" ]; then
+        echo "Testing PostgreSQL connectivity..."
+        su - barman -c "barman check postgres-source-db" || echo "Warning: PostgreSQL connection check failed. This might be normal if the server is still starting up."
+    fi
+
     # Start cron
     /etc/init.d/cron start
 

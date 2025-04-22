@@ -54,6 +54,9 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	RUN mkdir -p /etc/barman.d \
 	&& echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
 	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "conninfo = host=pg-docker.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "ssh_command = ssh postgres@pg-docker.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "backup_method = postgres" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "incoming_wals_directory = /backup/barman/postgres-source-db/incoming" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "streaming_archiver = off" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "archiver = on" >> /etc/barman.d/postgres-source-db.conf \
@@ -68,8 +71,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 # Set up barman user .ssh directory with proper permissions
 RUN su barman -c "mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh && \
     touch /var/lib/barman/.ssh/authorized_keys && chmod 600 /var/lib/barman/.ssh/authorized_keys && \
-    touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass && \
-    echo \"postgres-source-db:*:*:barman:passw0rd\" > /var/lib/barman/.pgpass"
+    touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass"
 
 # Custom entrypoint
 COPY ./barman/docker-entrypoint.sh /
