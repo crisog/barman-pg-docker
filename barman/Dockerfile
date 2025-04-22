@@ -1,16 +1,19 @@
 # Dockerfile for Barman
 
-# 1.1 Build args for R2 and AWS credentials (pass at build or runtime)
+# Basic Setup
+FROM debian:bookworm-slim
+
+# Build args for R2 and AWS credentials (pass at build or runtime)
 ARG R2_ACCOUNT_ID
 ARG R2_BUCKET
 
-# Basic Setup
-FROM debian:bookworm-slim
+ENV R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+ENV R2_BUCKET=${R2_BUCKET}
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg2 cron openssh-server openssh-client && rm -rf /var/lib/apt/lists/*
 RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \ 
 	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - || wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg) \ 
-	&& apt-get update && apt-get install -y barman barman-cli \ 	
+	&& apt-get update && apt-get install -y barman \ 	
 	&& rm -rf /var/lib/apt/lists/*
 
 # SSH Setup
