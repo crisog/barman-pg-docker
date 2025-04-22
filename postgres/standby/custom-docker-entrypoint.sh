@@ -2,25 +2,26 @@
 set -euo pipefail
 
 # ── Required ENV ────────────────────────────────────────────────
-#   BARMAN_HOST      e.g. barman.railway.internal
-#   SSH_PRIVATE_KEY  your PEM‐formatted key
-#   SSH_PUBLIC_KEY   optional, for host‐checking
-#   POSTGRES_PASSWORD
+#   BARMAN_HOST       e.g. barman.railway.internal
+#   SSH_PRIVATE_KEY   your PEM‐formatted key
+#   SSH_PUBLIC_KEY    optional, for no‑prompt host verification
+#   POSTGRES_PASSWORD (the password you used when creating the barman user)
 # ── Optional ────────────────────────────────────────────────────
-#   RECOVERY_TIME    "YYYY-MM-DD HH:MM:SS" for PITR
+#   RECOVERY_TIME     "YYYY-MM-DD HH:MM:SS" for PITR
 
 PGDATA=${PGDATA:-/var/lib/postgresql/data}
 
-# ── 0) Recompute Barman’s real password (MD5 hash) ────────────────
+# ── 0) Recompute the real barman password hash ───────────────────
 BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}barman" \
               | md5sum | cut -d' ' -f1)
 
-# ── 1) Build minimal Barman config ─────────────────────────────────
+# ── 1) Build minimal Barman config ───────────────────────────────
 mkdir -p /etc/barman.d
 
 cat > /etc/barman.conf <<EOF
 [barman]
 barman_home = /var/lib/barman
+configuration_files_directory = /etc/barman.d
 log_level = DEBUG
 compression = gzip
 reuse_backup = link
@@ -41,10 +42,9 @@ retention_policy = RECOVERY WINDOW OF 7 days
 wal_retention_policy = main
 EOF
 
-chmod 600 /etc/barman.conf \
-       /etc/barman.d/postgres-source-db.conf
+chmod 600 /etc/barman.conf /etc/barman.d/postgres-source-db.conf
 
-# ── 2) SSH key setup ──────────────────────────────────────────────
+# ── 2) SSH key setup for outbound to Barman ──────────────────────
 mkdir -p /root/.ssh
 if [ -n "${SSH_PRIVATE_KEY-}" ]; then
   printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -63,17 +63,17 @@ Host ${BARMAN_HOST}
 EOF
 chmod 600 /root/.ssh/config
 
-# ── 3) Make sure PGDATA exists ────────────────────────────────────
-mkdir -p "$PGDATA"
+# ── 3) Ensure PGDATA exists ──────────────────────────────────────
+mkdir -p "${PGDATA}"
 
-# ── 4) Recover if PITR requested or PGDATA is empty ───────────────
-if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "$PGDATA")" ]; then
+# ── 4) Recover if PITR requested or PGDATA is empty ──────────────
+if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "${PGDATA}")" ]; then
   echo "[standby] Running Barman recovery..."
 
-  # sanity‑check: uses ssh_command from barman.d config
+  # sanity‑check: uses ssh_command from /etc/barman.d
   barman check postgres-source-db
 
-  # recover latest or up to RECOVERY_TIME
+  # recover at RECOVERY_TIME (if set) or latest
   if [ -n "${RECOVERY_TIME-}" ]; then
     barman recover \
       --target-time "$RECOVERY_TIME" \
@@ -89,5 +89,5 @@ if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "$PGDATA")" ]; then
   echo "[standby] Recovery finished."
 fi
 
-# ── 5) Hand off to wrapper → docker-entrypoint.sh → postgres ───────
+# ── 5) Hand off to wrapper (which calls docker-entrypoint.sh) ────
 exec /usr/local/bin/wrapper.sh postgres
