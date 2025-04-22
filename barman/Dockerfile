@@ -66,7 +66,10 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	&& chmod 600 /etc/barman.d/postgres-source-db.conf
 
 # Set up barman user .ssh directory with proper permissions
-RUN su barman -c "mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh && touch /var/lib/barman/.ssh/authorized_keys && chmod 600 /var/lib/barman/.ssh/authorized_keys && touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass && echo \"postgres-source-db:*:*:barman:passw0rd\" > /var/lib/barman/.pgpass"
+RUN su barman -c "mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh && \
+    touch /var/lib/barman/.ssh/authorized_keys && chmod 600 /var/lib/barman/.ssh/authorized_keys && \
+    touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass && \
+    echo \"postgres-source-db:*:*:barman:passw0rd\" > /var/lib/barman/.pgpass"
 
 # Custom entrypoint
 COPY ./barman/docker-entrypoint.sh /
