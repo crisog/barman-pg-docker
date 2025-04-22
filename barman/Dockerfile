@@ -47,7 +47,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	&& echo "" >> /etc/barman.conf && echo "; For automatic retention policies enforcement by the barman cron" >> /etc/barman.conf && echo "retention_policy_mode = auto" >> /etc/barman.conf \ 
 	&& echo "" >> /etc/barman.conf && echo "; Incremental backup - Hard links" >> /etc/barman.conf && echo "reuse_backup = link" >> /etc/barman.conf \
 	# Cloud hooks - sync WALs and backups to S3
-	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile default s3://${R2_BUCKET}/wal-archives postgres-source-db \\${WAL_FILE}'" >> /etc/barman.conf \
+	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com s3://${R2_BUCKET}/wal-archives postgres-source-db \\${WAL_FILE}'" >> /etc/barman.conf \
 	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com s3://${R2_BUCKET}/base-backups postgres-source-db'" >> /etc/barman.conf
 
 	# Barman Server Setup: per-server configuration via rsync
