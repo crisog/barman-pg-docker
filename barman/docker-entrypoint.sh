@@ -50,8 +50,8 @@ function customize {
         cat > /etc/barman.d/pg-primary-db.conf <<EOF
 [pg-primary-db]
 description = "Primary PostgreSQL on Railway"
-conninfo = host=${POSTGRES_HOST} user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS
-streaming_conninfo = host=${POSTGRES_HOST} user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS replication=true
+conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS
+streaming_conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS replication=true
 streaming_archiver = on
 archiver = off
 backup_method = postgres
