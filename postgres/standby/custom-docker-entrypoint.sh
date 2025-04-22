@@ -17,16 +17,13 @@ BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}barman" \
 
 # ── 1) Build minimal Barman config ───────────────────────────────
 mkdir -p /etc/barman.d
+chmod 755 /etc/barman.d
 
 cat > /etc/barman.conf <<EOF
 [barman]
 barman_home = /var/lib/barman
 configuration_files_directory = /etc/barman.d
 log_level = DEBUG
-compression = gzip
-reuse_backup = link
-wal_retention_policy = main
-retention_policy_mode = auto
 EOF
 
 cat > /etc/barman.d/postgres-source-db.conf <<EOF
@@ -35,11 +32,6 @@ description = Primary PostgreSQL on Railway
 conninfo = host=${BARMAN_HOST} user=barman dbname=postgres password=${BARMAN_PASS}
 ssh_command = ssh postgres@${BARMAN_HOST}
 backup_method = rsync
-incoming_wals_directory = /backup/barman/postgres-source-db/incoming
-streaming_archiver = off
-archiver = on
-retention_policy = RECOVERY WINDOW OF 7 days
-wal_retention_policy = main
 EOF
 
 chmod 600 /etc/barman.conf /etc/barman.d/postgres-source-db.conf
@@ -69,6 +61,12 @@ mkdir -p "${PGDATA}"
 # ── 4) Recover if PITR requested or PGDATA is empty ──────────────
 if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "${PGDATA}")" ]; then
   echo "[standby] Running Barman recovery..."
+
+  # Make sure barman home directory exists
+  mkdir -p /var/lib/barman
+
+  # List available servers for diagnostic purposes
+  barman list-server
 
   # sanity‑check: uses ssh_command from /etc/barman.d
   barman check postgres-source-db
