@@ -5,6 +5,7 @@ BARMAN_CONF="/etc/barman.conf"
 TEMP_CONF="/tmp/barman.conf"
 
 function customize {
+    # Root SSH setup
     mkdir -p /root/.ssh
     if [ -n "$SSH_PRIVATE_KEY" ]; then
         printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -17,6 +18,7 @@ function customize {
     chmod 700 /root/.ssh
     chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
 
+    # Barman user SSH setup
     mkdir -p /var/lib/barman/.ssh
     if [ -n "$SSH_PRIVATE_KEY" ]; then
         printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_rsa
@@ -29,23 +31,29 @@ function customize {
     fi
     chmod 700 /var/lib/barman/.ssh
     chmod 600 /var/lib/barman/.ssh/id_rsa* /var/lib/barman/.ssh/authorized_keys
-    chown -R barman:barman /var/lib/barman/.ssh
-
+    touch /var/lib/barman/.ssh/authorized_keys
+    chmod 600 /var/lib/barman/.ssh/authorized_keys
+    
+    # Create and set permissions for barman logs and directories
     mkdir -p /var/log/barman
     chown -R barman:barman /var/log/barman
 
+    # Create and set up specific backup directories
     mkdir -p /backup/barman/postgres-source-db/incoming
     chown -R barman:barman /backup/barman
 
-    mkdir -p /etc/barman.d
+    # Set proper permissions for barman config directory
     chown -R barman:barman /etc/barman.d
+    chmod 600 /etc/barman.d/postgres-source-db.conf
 
+    # Configure PostgreSQL password if provided
     if [ -n "$POSTGRES_PASSWORD" ]; then
         echo "pg-docker.railway.internal:*:*:barman:${POSTGRES_PASSWORD}" > /var/lib/barman/.pgpass
         chmod 0600 /var/lib/barman/.pgpass
         chown barman:barman /var/lib/barman/.pgpass
     fi
 
+    # Set up AWS credentials if provided
     if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
         mkdir -p /var/lib/barman/.aws
         cat > /var/lib/barman/.aws/credentials <<EOF

@@ -28,8 +28,11 @@ ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
 # Barman Setup
-# Create base SSH directories but don't rely on pre-existing keys
-RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys \ 
+# Create base directories but don't populate keys - this will be done in entrypoint
+RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
+	&& mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh \
+	&& mkdir -p /etc/barman.d \
+	&& mkdir -p /backup/barman \
 	&& chown -R barman: /etc/barman.conf \ 
 	&& echo "" >> /etc/cron.d/barman \ 
 	&& echo "0 3 * * * barman /usr/bin/barman backup postgres-source-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \ 
@@ -50,9 +53,8 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives postgres-source-db \\${WAL_FILE}'" >> /etc/barman.conf \
 	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups postgres-source-db'" >> /etc/barman.conf
 
-	# Barman Server Setup: per-server configuration via rsync
-	RUN mkdir -p /etc/barman.d \
-	&& echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
+# Barman Server Setup: per-server configuration via rsync
+RUN echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
 	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "conninfo = host=pg-docker.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "ssh_command = ssh postgres@pg-docker.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
@@ -64,14 +66,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	# Retention policies
 	&& echo "retention_policy_mode = auto" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "retention_policy     = RECOVERY WINDOW OF 7 days" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "wal_retention_policy = main" >> /etc/barman.d/postgres-source-db.conf \
-	&& chown barman:barman /etc/barman.d/postgres-source-db.conf \
-	&& chmod 600 /etc/barman.d/postgres-source-db.conf
-
-# Set up barman user .ssh directory with proper permissions
-RUN su barman -c "mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh && \
-    touch /var/lib/barman/.ssh/authorized_keys && chmod 600 /var/lib/barman/.ssh/authorized_keys && \
-    touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass"
+	&& echo "wal_retention_policy = main" >> /etc/barman.d/postgres-source-db.conf
 
 # Custom entrypoint
 COPY ./barman/docker-entrypoint.sh /
