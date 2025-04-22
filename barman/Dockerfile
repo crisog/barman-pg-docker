@@ -20,7 +20,7 @@ RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main
 RUN mkdir -p /var/run/sshd
 RUN echo 'root:password' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN echo "Host pg-docker.railway.internal pg-docker*" >> /etc/ssh/ssh_config && echo " StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+RUN echo "Host primary-pg.railway.internal primary-pg*" >> /etc/ssh/ssh_config && echo " StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
 # SSH login fix. Otherwise user is kicked off after login
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
@@ -53,8 +53,8 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
 # Barman Server Setup: per-server configuration via rsync
 RUN echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
 	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "conninfo = host=pg-docker.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
-	&& echo "ssh_command = ssh postgres@pg-docker.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "conninfo = host=primary-pg.railway.internal user=barman dbname=postgres password=${POSTGRES_PASSWORD}" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "ssh_command = ssh postgres@primary-pg.railway.internal" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "backup_method = rsync" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "incoming_wals_directory = /backup/barman/postgres-source-db/incoming" >> /etc/barman.d/postgres-source-db.conf \
 	&& echo "streaming_archiver = off" >> /etc/barman.d/postgres-source-db.conf \

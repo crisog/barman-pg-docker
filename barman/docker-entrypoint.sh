@@ -48,7 +48,7 @@ function customize {
 
     # Configure PostgreSQL password if provided
     if [ -n "$POSTGRES_PASSWORD" ]; then
-        echo "pg-docker.railway.internal:*:*:barman:${POSTGRES_PASSWORD}" > /var/lib/barman/.pgpass
+        echo "primary-pg.railway.internal:*:*:barman:${POSTGRES_PASSWORD}" > /var/lib/barman/.pgpass
         chmod 0600 /var/lib/barman/.pgpass
         chown barman:barman /var/lib/barman/.pgpass
     fi

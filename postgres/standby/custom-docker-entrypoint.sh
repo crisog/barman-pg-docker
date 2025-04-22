@@ -1,97 +1,63 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 
-# ── Required ENV ────────────────────────────────────────────────
-#   BARMAN_HOST       e.g. barman.railway.internal
-#   SSH_PRIVATE_KEY   your PEM‐formatted key
-#   SSH_PUBLIC_KEY    optional, for no‑prompt host verification
-#   POSTGRES_PASSWORD (the password you used when creating the barman user)
-# ── Optional ────────────────────────────────────────────────────
-#   RECOVERY_TIME     "YYYY-MM-DD HH:MM:SS" for PITR
+setup_ssh() {
+  # root
+  mkdir -p /root/.ssh
+  if [ -n "$SSH_PRIVATE_KEY" ]; then
+    printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
+    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
+    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
+  else
+    ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa
+    cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+  fi
+  chmod 700 /root/.ssh
+  chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
 
-PGDATA=${PGDATA:-/var/lib/postgresql/data}
+  # postgres user
+  su postgres -c "bash -lc '
+    mkdir -p ~/.ssh
+    if [ -n \"\$SSH_PRIVATE_KEY\" ]; then
+      printf \"%s\" \"\$SSH_PRIVATE_KEY\" > ~/.ssh/id_rsa
+      printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/id_rsa.pub
+      printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/authorized_keys
+    else
+      ssh-keygen -t rsa -N \"\" -f ~/.ssh/id_rsa
+      cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+    fi
+    chmod 700 ~/.ssh
+    chmod 600 ~/.ssh/id_rsa* ~/.ssh/authorized_keys
+  '"
 
-# ── 0) Recompute the real barman password hash ───────────────────
-BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}barman" \
-              | md5sum | cut -d' ' -f1)
-
-# ── 1) Build minimal Barman config ───────────────────────────────
-mkdir -p /etc/barman.d
-chmod 755 /etc/barman.d
-
-cat > /etc/barman.conf <<EOF
-[barman]
-barman_home = /var/lib/barman
-log_level = DEBUG
-compression = gzip
-reuse_backup = link
-wal_retention_policy = main
-retention_policy_mode = auto
-
-[postgres-source-db]
-description = Primary PostgreSQL on Railway
-conninfo = host=${BARMAN_HOST} user=barman dbname=postgres password=${BARMAN_PASS}
-ssh_command = ssh postgres@${BARMAN_HOST}
-backup_method = rsync
-incoming_wals_directory = /backup/barman/postgres-source-db/incoming
-streaming_archiver = off
-archiver = on
-retention_policy = RECOVERY WINDOW OF 7 days
-wal_retention_policy = main
-EOF
-
-chmod 600 /etc/barman.conf
-
-# ── 2) SSH key setup for outbound to Barman ──────────────────────
-mkdir -p /root/.ssh
-if [ -n "${SSH_PRIVATE_KEY-}" ]; then
-  printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
-  printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
-else
-  ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa
-  cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
-fi
-chmod 700 /root/.ssh
-chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
-
-cat > /root/.ssh/config <<EOF
-Host ${BARMAN_HOST}
+  # disable host‑key checking for barman host
+  cat > /var/lib/postgresql/.ssh/config <<EOF
+Host barman.railway.internal barman*
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
 EOF
-chmod 600 /root/.ssh/config
+  chmod 600 /var/lib/postgresql/.ssh/config
+  chown postgres:postgres /var/lib/postgresql/.ssh/config
 
-# ── 3) Ensure PGDATA exists ──────────────────────────────────────
-mkdir -p "${PGDATA}"
+  # finally start sshd (it will daemonize itself)
+  /usr/sbin/sshd
+  echo "sshd started"
+}
 
-# ── 4) Recover if PITR requested or PGDATA is empty ──────────────
-if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "${PGDATA}")" ]; then
-  echo "[standby] Running Barman recovery..."
+main() {
+  setup_ssh
 
-  # Make sure barman home directory exists
-  mkdir -p /var/lib/barman
-
-  # List available servers for diagnostic purposes
-  barman list-server
-
-  # sanity‑check: uses ssh_command from /etc/barman.d
-  barman check postgres-source-db
-
-  # recover at RECOVERY_TIME (if set) or latest
-  if [ -n "${RECOVERY_TIME-}" ]; then
-    barman recover \
-      --target-time "$RECOVERY_TIME" \
-      postgres-source-db latest \
-      "$PGDATA"
-  else
-    barman recover \
-      postgres-source-db latest \
-      "$PGDATA"
+  # Determine run mode: idle (no Postgres) or active (start Postgres)
+  mode="${MODE:-idle}"
+  if [ "$mode" = "idle" ]; then
+    echo "Idle mode: setup complete, waiting for remote restore via SSH"
+    # keep container alive without starting Postgres
+    exec tail -f /dev/null
   fi
 
-  chown -R postgres:postgres "$PGDATA"
-  echo "[standby] Recovery finished."
-fi
+  echo "Active mode: starting Postgres"
+  echo "Handing off to wrapper..."
+  exec /usr/local/bin/wrapper.sh "$@"
+}
 
-# ── 5) Hand off to wrapper (which calls docker-entrypoint.sh) ────
-exec /usr/local/bin/wrapper.sh postgres
+main "$@"
