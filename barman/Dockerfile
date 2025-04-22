@@ -22,7 +22,7 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
 	&& mkdir -p /backup/barman \
 	&& chown -R barman: /etc/barman.conf \
 	&& echo "" >> /etc/cron.d/barman \
-	&& echo "0 3 * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \
+	&& echo "0 * * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \
 	&& touch /etc/crontab /etc/cron.*/* \
 	&& sed -i.bak 's_/var/lib/barman_/backup/barman_' /etc/barman.conf \
 	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \
