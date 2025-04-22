@@ -95,13 +95,19 @@ EOF
 
     if [ "$1" = "barman" ]; then
         echo "Performing initial Barman checks and setup..."
+
+        # 1. Start WAL receiver first (required for replication slot check)
+        su - barman -c "barman receive-wal pg-primary-db &"
+        echo "Barman receive-wal process started in background."
+
+        # Give it a moment to potentially initialize the slot
+        sleep 2 
         
+        # 2. Check connection and setup
         if su - barman -c "barman check pg-primary-db"; then
             echo "Barman check successful."
-            
-            su - barman -c "barman receive-wal pg-primary-db &"
-            echo "Barman receive-wal process started in background."
-            
+
+            # 3. Check for existing backups and run initial if needed (only if check passed)
             if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
                 echo "No backups found — launching initial base backup"
                 su - barman -c "barman backup pg-primary-db"
@@ -109,9 +115,8 @@ EOF
                 echo "Existing backups found."
             fi
         else
-            echo "Warning: Barman check failed (server may still be starting). Initial backup will not be attempted now."
-            su - barman -c "barman receive-wal pg-primary-db &"
-            echo "Barman receive-wal process started in background."
+            echo "Warning: Barman check failed (possibly transient, receive-wal is running). Initial backup will not be attempted now."
+            # receive-wal was already started
         fi
     fi
 
