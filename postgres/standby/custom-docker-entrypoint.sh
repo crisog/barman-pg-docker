@@ -2,22 +2,20 @@
 set -euo pipefail
 
 # ── Required ENV ────────────────────────────────────────────────
-#   BARMAN_HOST         e.g. barman.railway.internal
-#   SSH_PRIVATE_KEY     your PEM‐formatted key
-#   SSH_PUBLIC_KEY      optional, for no‐prompt host verification
-#   PRIMARY_HOST        your primary’s hostname for streaming (if used)
-#   POSTGRES_PASSWORD  (the password you used when creating the barman user)
+#   BARMAN_HOST      e.g. barman.railway.internal
+#   SSH_PRIVATE_KEY  your PEM‐formatted key
+#   SSH_PUBLIC_KEY   optional, for host‐checking
+#   POSTGRES_PASSWORD
 # ── Optional ────────────────────────────────────────────────────
-#   RECOVERY_TIME       "YYYY-MM-DD HH:MM:SS" for PITR
+#   RECOVERY_TIME    "YYYY-MM-DD HH:MM:SS" for PITR
 
 PGDATA=${PGDATA:-/var/lib/postgresql/data}
 
-# ── 0) Recompute the actual Barman password hash ───────────────────────
-#    (matches how you did it in 02-db-config.sh)
+# ── 0) Recompute Barman’s real password (MD5 hash) ────────────────
 BARMAN_PASS=$(echo -n "md5${POSTGRES_PASSWORD}barman" \
               | md5sum | cut -d' ' -f1)
 
-# ── 1) Minimal Barman config for client recover ───────────────────────
+# ── 1) Build minimal Barman config ─────────────────────────────────
 mkdir -p /etc/barman.d
 
 cat > /etc/barman.conf <<EOF
@@ -46,7 +44,7 @@ EOF
 chmod 600 /etc/barman.conf \
        /etc/barman.d/postgres-source-db.conf
 
-# ── 2) SSH key setup for outbound to Barman ──────────────────────────
+# ── 2) SSH key setup ──────────────────────────────────────────────
 mkdir -p /root/.ssh
 if [ -n "${SSH_PRIVATE_KEY-}" ]; then
   printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -65,32 +63,31 @@ Host ${BARMAN_HOST}
 EOF
 chmod 600 /root/.ssh/config
 
-# ── 3) Recover base backup + WAL (either PITR or latest) ──────────────
+# ── 3) Make sure PGDATA exists ────────────────────────────────────
+mkdir -p "$PGDATA"
+
+# ── 4) Recover if PITR requested or PGDATA is empty ───────────────
 if [ -n "${RECOVERY_TIME-}" ] || [ -z "$(ls -A "$PGDATA")" ]; then
   echo "[standby] Running Barman recovery..."
 
-  # sanity check
-  barman check postgres-source-db \
-    --remote-ssh-command "ssh -i /root/.ssh/id_rsa postgres@${BARMAN_HOST}"
+  # sanity‑check: uses ssh_command from barman.d config
+  barman check postgres-source-db
 
-  # recover at RECOVERY_TIME or just latest
+  # recover latest or up to RECOVERY_TIME
   if [ -n "${RECOVERY_TIME-}" ]; then
     barman recover \
-      --remote-ssh-command "ssh -i /root/.ssh/id_rsa postgres@${BARMAN_HOST}" \
       --target-time "$RECOVERY_TIME" \
       postgres-source-db latest \
       "$PGDATA"
   else
     barman recover \
-      --remote-ssh-command "ssh -i /root/.ssh/id_rsa postgres@${BARMAN_HOST}" \
       postgres-source-db latest \
       "$PGDATA"
   fi
 
-  # fix permissions
   chown -R postgres:postgres "$PGDATA"
   echo "[standby] Recovery finished."
 fi
 
-# ── 4) Hand off to your wrapper, which calls docker-entrypoint.sh ────
+# ── 5) Hand off to wrapper → docker-entrypoint.sh → postgres ───────
 exec /usr/local/bin/wrapper.sh postgres
