@@ -57,6 +57,22 @@ function customize {
         chown barman:barman /var/lib/barman/.pgpass
     fi
 
+    # ─── AWS credentials for cloud backups ────────────────────────────
+    if [ ! -z "$AWS_ACCESS_KEY_ID" ] && [ ! -z "$AWS_SECRET_ACCESS_KEY" ]; then
+        mkdir -p /var/lib/barman/.aws
+        cat > /var/lib/barman/.aws/credentials << EOF
+[barman-cloud]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+EOF
+        chmod 700 /var/lib/barman/.aws
+        chmod 600 /var/lib/barman/.aws/credentials
+        chown -R barman:barman /var/lib/barman/.aws
+        echo "AWS/R2 credentials configured"
+    else
+        echo "Warning: AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not provided, cloud backups will not work"
+    fi
+
     # Check PostgreSQL connectivity
     if [ "$1" = "barman" ]; then
         echo "Testing PostgreSQL connectivity..."
