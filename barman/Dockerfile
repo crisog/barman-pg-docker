@@ -13,7 +13,7 @@ ENV R2_BUCKET=${R2_BUCKET}
 RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg2 cron openssh-server openssh-client && rm -rf /var/lib/apt/lists/*
 RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \ 
 	&& (wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - || wget --no-check-certificate --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg) \ 
-	&& apt-get update && apt-get install -y barman \ 	
+	&& apt-get update && apt-get install -y barman barman-cli-cloud \ 	
 	&& rm -rf /var/lib/apt/lists/*
 
 # SSH Setup
