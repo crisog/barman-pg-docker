@@ -50,6 +50,21 @@ RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod
 	&& echo "pre_archive_retry_script = '/usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile default s3://${R2_BUCKET}/wal-archives postgres-source-db \\${WAL_FILE}'" >> /etc/barman.conf \
 	&& echo "post_backup_retry_script = '/usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com s3://${R2_BUCKET}/base-backups postgres-source-db'" >> /etc/barman.conf
 
+	# Barman Server Setup: per-server configuration via rsync
+	RUN mkdir -p /etc/barman.d \
+	&& echo "[postgres-source-db]" > /etc/barman.d/postgres-source-db.conf \
+	&& echo "description = \"Primary PostgreSQL on Railway\"" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "incoming_wals_directory = /backup/barman/postgres-source-db/incoming" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "streaming_archiver = off" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "archiver = on" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "" >> /etc/barman.d/postgres-source-db.conf \
+	# Retention policies
+	&& echo "retention_policy_mode = auto" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "retention_policy     = RECOVERY WINDOW OF 7 days" >> /etc/barman.d/postgres-source-db.conf \
+	&& echo "wal_retention_policy = main" >> /etc/barman.d/postgres-source-db.conf \
+	&& chown barman:barman /etc/barman.d/postgres-source-db.conf \
+	&& chmod 600 /etc/barman.d/postgres-source-db.conf
+
 # Set up barman user .ssh directory with proper permissions
 RUN su barman -c "mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh && touch /var/lib/barman/.ssh/authorized_keys && chmod 600 /var/lib/barman/.ssh/authorized_keys && touch /var/lib/barman/.pgpass && chmod 0600 /var/lib/barman/.pgpass && echo \"postgres-source-db:*:*:barman:passw0rd\" > /var/lib/barman/.pgpass"
 
