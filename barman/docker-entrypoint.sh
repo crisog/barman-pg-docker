@@ -1,11 +1,14 @@
 #!/bin/bash
 set -e
 
-BARMAN_CONF="/etc/barman.conf"
-TEMP_CONF="/tmp/barman.conf"
+# Function to hash passwords the same way as the DB init script
+hash_password() {
+    local password="$1"
+    local username="$2"
+    echo -n "md5${password}${username}" | md5sum | cut -d' ' -f1
+}
 
 function customize {
-    # Root SSH setup
     mkdir -p /root/.ssh
     if [ -n "$SSH_PRIVATE_KEY" ]; then
         printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -18,7 +21,6 @@ function customize {
     chmod 700 /root/.ssh
     chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
 
-    # Barman user SSH setup
     mkdir -p /var/lib/barman/.ssh
     if [ -n "$SSH_PRIVATE_KEY" ]; then
         printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_rsa
@@ -34,26 +36,27 @@ function customize {
     touch /var/lib/barman/.ssh/authorized_keys
     chmod 600 /var/lib/barman/.ssh/authorized_keys
     
-    # Create and set permissions for barman logs and directories
     mkdir -p /var/log/barman
     chown -R barman:barman /var/log/barman
 
-    # Create and set up specific backup directories
     mkdir -p /backup/barman/pg-primary-db/incoming
     chown -R barman:barman /backup/barman
 
-    # Set proper permissions for barman config directory
     chown -R barman:barman /etc/barman.d
     chmod 600 /etc/barman.d/pg-primary-db.conf
 
-    # Configure PostgreSQL password if provided
     if [ -n "$POSTGRES_PASSWORD" ]; then
-        echo "primary-pg.railway.internal:*:*:barman:${POSTGRES_PASSWORD}" > /var/lib/barman/.pgpass
+        BARMAN_HASHED_PASS=$(hash_password "$POSTGRES_PASSWORD" "barman")
+        
+        sed -i "s/password=.*\"/password=$BARMAN_HASHED_PASS\"/" /etc/barman.d/pg-primary-db.conf
+        
+        echo "primary-pg.railway.internal:*:*:barman:$BARMAN_HASHED_PASS" > /var/lib/barman/.pgpass
         chmod 0600 /var/lib/barman/.pgpass
         chown barman:barman /var/lib/barman/.pgpass
+        
+        echo "PostgreSQL password configured with proper MD5 hash"
     fi
 
-    # Set up AWS credentials if provided
     if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
         mkdir -p /var/lib/barman/.aws
         cat > /var/lib/barman/.aws/credentials <<EOF
@@ -69,7 +72,6 @@ EOF
         echo "Warning: AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set; cloud backups will not work"
     fi
 
-    # ─── PostgreSQL connectivity check (optional) ────────────────────
     if [ "$1" = "barman" ]; then
         su - barman -c "barman check pg-primary-db" \
           || echo "Warning: PostgreSQL connection check failed (server may still be starting)"
