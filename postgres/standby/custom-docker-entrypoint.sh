@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# Function to hash passwords the same way as the DB init script
+hash_password() {
+    local password="$1"
+    local username="$2"
+    echo -n "md5${password}${username}" | md5sum | cut -d' ' -f1
+}
+
 setup_ssh() {
   # root
   mkdir -p /root/.ssh
@@ -52,6 +59,34 @@ setup_custom_config() {
   fi
 }
 
+setup_replication_user() {
+  # Setup the replication user on the standby server
+  # This prepares it for eventual promotion to primary
+  if [ -f "/usr/local/bin/setup-replication-user.sh" ]; then
+    echo "Setting up replication user for future primary role..."
+    bash /usr/local/bin/setup-replication-user.sh
+    echo "Replication user setup complete"
+  fi
+}
+
+setup_replication() {
+  local PRIMARY_HOST=${PRIMARY_HOST:-postgres-primary}
+  local REPLICATION_USER=${REPLICATION_USER:-replicator}
+  
+  local REPLICATION_PASSWORD_HASH=$(hash_password "${POSTGRES_PASSWORD:-postgres}" "$REPLICATION_USER")
+
+  echo "Setting up replication configuration..."
+
+  cat > "$PGDATA/postgresql.auto.conf" <<EOF
+# Replication configuration
+primary_conninfo = 'host=$PRIMARY_HOST user=$REPLICATION_USER password=$REPLICATION_PASSWORD_HASH application_name=standby'
+restore_command = ''
+primary_slot_name = 'standby_slot'
+EOF
+
+  echo "Replication configuration complete."
+}
+
 main() {
   setup_ssh
 
@@ -64,6 +99,14 @@ main() {
   fi
 
   setup_custom_config
+  
+  # If the PREPARE_FOR_PROMOTION env var is set, configure the standby like a primary
+  if [ "${PREPARE_FOR_PROMOTION:-false}" = "true" ]; then
+    echo "Preparing standby for potential promotion to primary..."
+    setup_replication_user
+  fi
+  
+  setup_replication
 
   echo "Active mode: starting Postgres"
   echo "Handing off to wrapper..."
