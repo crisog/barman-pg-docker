@@ -10,12 +10,14 @@ RUN apt-get update \
 
 COPY ./postgres/common/pg_hba.conf   /var/lib/postgresql/config/pg_hba.conf
 COPY ./postgres/common/wrapper.sh    /usr/local/bin/wrapper.sh
+COPY ./postgres/common/01-init-custom-config.sh /docker-entrypoint-initdb.d/01-init-custom-config.sh
 COPY ./postgres/common/03-init-ssl.sh /docker-entrypoint-initdb.d/03-init-ssl.sh
 
 COPY ./postgres/standby/custom-docker-entrypoint.sh /usr/local/bin/custom-docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/wrapper.sh \
              /usr/local/bin/custom-docker-entrypoint.sh \
+             /docker-entrypoint-initdb.d/01-init-custom-config.sh \
              /docker-entrypoint-initdb.d/03-init-ssl.sh
 
 EXPOSE 22 5432

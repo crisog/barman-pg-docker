@@ -44,6 +44,14 @@ EOF
   echo "sshd started"
 }
 
+setup_custom_config() {
+  # Manually run the init script since recovery mode skips init scripts
+  if [ -f "/docker-entrypoint-initdb.d/01-init-custom-config.sh" ]; then
+    echo "Running custom config script..."
+    bash /docker-entrypoint-initdb.d/01-init-custom-config.sh
+  fi
+}
+
 main() {
   setup_ssh
 
@@ -54,6 +62,8 @@ main() {
     # keep container alive without starting Postgres
     exec tail -f /dev/null
   fi
+
+  setup_custom_config
 
   echo "Active mode: starting Postgres"
   echo "Handing off to wrapper..."
