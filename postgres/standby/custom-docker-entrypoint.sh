@@ -59,16 +59,6 @@ setup_custom_config() {
   fi
 }
 
-setup_replication_user() {
-  # Setup the replication user on the standby server
-  # This prepares it for eventual promotion to primary
-  if [ -f "/usr/local/bin/setup-replication-user.sh" ]; then
-    echo "Setting up replication user for future primary role..."
-    bash /usr/local/bin/setup-replication-user.sh
-    echo "Replication user setup complete"
-  fi
-}
-
 setup_replication() {
   local PRIMARY_HOST=${PRIMARY_HOST:-postgres-primary}
   local REPLICATION_USER=${REPLICATION_USER:-replicator}
@@ -113,11 +103,6 @@ main() {
   fi
 
   setup_custom_config
-
-  if [ "${PREPARE_FOR_PROMOTION:-false}" = "true" ]; then
-    echo "Preparing standby for potential promotion…"
-    setup_replication_user
-  fi
 
   setup_replication
 
