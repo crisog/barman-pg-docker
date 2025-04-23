@@ -2,16 +2,21 @@
 set -e
 
 # regenerate certs if needed (optional)
-SSL_DIR="/var/lib/postgresql/data/certs"
+SSL_DIR="$PGDATA/certs"
 INIT_SSL="/docker-entrypoint-initdb.d/03-init-ssl.sh"
 PG_CONF="$PGDATA/postgresql.conf"
 
-# if existing cert is invalid or expiring soon, re-run SSL script
-if [ -f "$SSL_DIR/server.crt" ]; then
-  if ! openssl x509 -noout -checkend 2592000 -in "$SSL_DIR/server.crt"; then
-    echo "Regenerating expiring SSL certificates..."
-    bash "$INIT_SSL"
-  fi
+# Always ensure the certificates directory exists
+mkdir -p "$SSL_DIR"
+chown postgres:postgres "$SSL_DIR"
+
+# Check if we need to create or regenerate certificates
+if [ ! -f "$SSL_DIR/server.crt" ]; then
+  echo "SSL certificates not found - generating new certificates..."
+  bash "$INIT_SSL"
+elif ! openssl x509 -noout -checkend 2592000 -in "$SSL_DIR/server.crt"; then
+  echo "Regenerating expiring SSL certificates..."
+  bash "$INIT_SSL"
 fi
 
 # force local socket usage
