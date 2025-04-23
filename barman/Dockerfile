@@ -7,9 +7,8 @@ RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /var/run/sshd
-RUN echo 'root:password' | chpasswd
+# Don't set a password for root - use key authentication only
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN echo "Host primary-pg.railway.internal primary-pg*" >> /etc/ssh/ssh_config && echo " StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
 # SSH login fix. Otherwise user is kicked off after login
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd

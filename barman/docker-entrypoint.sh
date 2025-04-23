@@ -41,6 +41,23 @@ function customize {
     touch /var/lib/barman/.ssh/authorized_keys
     chmod 600 /var/lib/barman/.ssh/authorized_keys
     
+    # Create comprehensive SSH config for barman user only
+    cat > /var/lib/barman/.ssh/config <<EOF
+# Primary PostgreSQL hosts
+Host primary-pg.railway.internal primary-pg*
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+
+# Standby PostgreSQL hosts  
+Host standby-pg.railway.internal postgrespg.railway.internal standby*
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+EOF
+    chmod 600 /var/lib/barman/.ssh/config
+    
+    # Ensure barman user owns all SSH files
+    chown -R barman:barman /var/lib/barman/.ssh
+    
     mkdir -p /var/log/barman
     chown -R barman:barman /var/log/barman
 
@@ -115,6 +132,7 @@ EOF
         echo "Checking for existing backups..."
         if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
             echo "No backups found — launching initial base backup (this may take a while)..."
+            sleep 30
             if su - barman -c "barman backup pg-primary-db"; then
                 echo "Initial base backup completed successfully."
             else
