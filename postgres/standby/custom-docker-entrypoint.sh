@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# Function to hash passwords the same way as the DB init script
 hash_password() {
     local password="$1"
     local username="$2"
@@ -9,7 +8,6 @@ hash_password() {
 }
 
 setup_ssh() {
-  # root
   mkdir -p /root/.ssh
   if [ -n "$SSH_PRIVATE_KEY" ]; then
     printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -22,7 +20,6 @@ setup_ssh() {
   chmod 700 /root/.ssh
   chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
 
-  # postgres user
   su postgres -c "bash -lc '
     mkdir -p ~/.ssh
     if [ -n \"\$SSH_PRIVATE_KEY\" ]; then
@@ -37,7 +34,6 @@ setup_ssh() {
     chmod 600 ~/.ssh/id_rsa* ~/.ssh/authorized_keys
   '"
 
-  # disable host‑key checking for barman host
   cat > /var/lib/postgresql/.ssh/config <<EOF
 Host barman.railway.internal barman*
   StrictHostKeyChecking no
@@ -46,13 +42,11 @@ EOF
   chmod 600 /var/lib/postgresql/.ssh/config
   chown postgres:postgres /var/lib/postgresql/.ssh/config
 
-  # finally start sshd (it will daemonize itself)
   /usr/sbin/sshd
   echo "sshd started"
 }
 
 setup_custom_config() {
-  # Manually run the init script since recovery mode skips init scripts
   if [ -f "/docker-entrypoint-initdb.d/01-init-custom-config.sh" ]; then
     echo "Running custom config script..."
     bash /docker-entrypoint-initdb.d/01-init-custom-config.sh
@@ -81,11 +75,9 @@ setup_ssl() {
   SSL_DIR="$PGDATA/certs"
   INIT_SSL="/docker-entrypoint-initdb.d/03-init-ssl.sh"
 
-  # make sure the folder exists and is owned by postgres
   mkdir -p "$SSL_DIR"
   chown postgres:postgres "$SSL_DIR"
 
-  # if there's no cert, or it's due to expire in the next 30 days…
   if [ ! -f "$SSL_DIR/server.crt" ] \
      || ! openssl x509 -noout -checkend 2592000 -in "$SSL_DIR/server.crt"; then
     echo "Generating (or regenerating) SSL certificates…"
@@ -106,7 +98,6 @@ main() {
 
   setup_replication
 
-  # ← right here, after recovery has populated PGDATA, we generate certs
   setup_ssl
 
   echo "Active mode: starting Postgres"
