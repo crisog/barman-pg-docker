@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-SSL_DIR="/var/lib/postgresql/data/certs"
+SSL_DIR="$PGDATA/certs"
 SSL_SERVER_CRT="$SSL_DIR/server.crt"
 SSL_SERVER_KEY="$SSL_DIR/server.key"
 SSL_SERVER_CSR="$SSL_DIR/server.csr"
