@@ -16,15 +16,13 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
-RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh \
+RUN mkdir -p /var/lib/barman && chown barman:barman /var/lib/barman \
 	&& mkdir -p /var/lib/barman/.ssh && chmod 700 /var/lib/barman/.ssh \
 	&& mkdir -p /etc/barman.d \
-	&& mkdir -p /backup/barman \
 	&& chown -R barman: /etc/barman.conf \
 	&& echo "" >> /etc/cron.d/barman \
 	&& echo "0 * * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \
 	&& touch /etc/crontab /etc/cron.*/* \
-	&& sed -i.bak 's_/var/lib/barman_/backup/barman_' /etc/barman.conf \
 	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \
 	&& sed -i.bak 's-^.*immediate_checkpoint = false-immediate_checkpoint = true-' /etc/barman.conf \
 	&& sed -i.bak 's-^.*basebackup_retry_times = 0-basebackup_retry_times = 3-' /etc/barman.conf \

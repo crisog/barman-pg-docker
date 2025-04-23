@@ -9,6 +9,11 @@ hash_password() {
 }
 
 function customize {
+    # Ensure the main Barman directory exists and has correct permissions
+    # This is important if /var/lib/barman is mounted as a volume
+    mkdir -p /var/lib/barman 
+    chown -R barman:barman /var/lib/barman
+
     mkdir -p /root/.ssh
     if [ -n "$SSH_PRIVATE_KEY" ]; then
         printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
@@ -38,9 +43,6 @@ function customize {
     
     mkdir -p /var/log/barman
     chown -R barman:barman /var/log/barman
-
-    mkdir -p /backup/barman/pg-primary-db/incoming
-    chown -R barman:barman /backup/barman
 
     mkdir -p /etc/barman.d
 
