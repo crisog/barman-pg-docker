@@ -21,14 +21,27 @@ barman backup pg-primary-db
 
 ## 2. Restore Standby
 
-### Restore latest backup into standby directory
+### 2.1 Restore latest backup into standby directory
 ```bash
 barman restore \
   --remote-ssh-command "ssh -i ~/.ssh/id_rsa root@standby-pg.railway.internal" \
   --standby-mode pg-primary-db latest /var/lib/postgresql/data
 ```
-
 > After running this, start PostgreSQL in **active** mode. The server will come up in standby and begin streaming from the primary.
+
+### 2.2 Point-in-Time Recovery (PITR)
+If you need to recover the standby to a specific timestamp instead of the latest WAL:
+
+```bash
+barman restore \
+  --remote-ssh-command "ssh -i ~/.ssh/id_rsa root@standby-pg.railway.internal" \
+  --target-time "2025-04-23 19:10:00" \
+  --standby-mode pg-primary-db latest /var/lib/postgresql/data
+```
+
+- `--target-time "YYYY-MM-DD HH24:MI:SS"` specifies the exact recovery point. Use UTC or include a timezone offset.
+- The restore will stop replay at or before this timestamp.
+- After restore, start Postgres in active mode as a standby (it will not stream beyond the target time).
 
 ---
 
