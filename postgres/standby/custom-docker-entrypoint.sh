@@ -87,29 +87,45 @@ EOF
   echo "Replication configuration complete."
 }
 
+setup_ssl() {
+  SSL_DIR="$PGDATA/certs"
+  INIT_SSL="/docker-entrypoint-initdb.d/03-init-ssl.sh"
+
+  # make sure the folder exists and is owned by postgres
+  mkdir -p "$SSL_DIR"
+  chown postgres:postgres "$SSL_DIR"
+
+  # if there's no cert, or it's due to expire in the next 30 days…
+  if [ ! -f "$SSL_DIR/server.crt" ] \
+     || ! openssl x509 -noout -checkend 2592000 -in "$SSL_DIR/server.crt"; then
+    echo "Generating (or regenerating) SSL certificates…"
+    bash "$INIT_SSL"
+  fi
+}
+
 main() {
   setup_ssh
 
-  # Determine run mode: idle (no Postgres) or active (start Postgres)
   mode="${MODE:-idle}"
   if [ "$mode" = "idle" ]; then
-    echo "Idle mode: setup complete, waiting for remote restore via SSH"
-    # keep container alive without starting Postgres
+    echo "Idle mode: awaiting remote restore via SSH"
     exec tail -f /dev/null
   fi
 
   setup_custom_config
-  
-  # If the PREPARE_FOR_PROMOTION env var is set, configure the standby like a primary
+
   if [ "${PREPARE_FOR_PROMOTION:-false}" = "true" ]; then
-    echo "Preparing standby for potential promotion to primary..."
+    echo "Preparing standby for potential promotion…"
     setup_replication_user
   fi
-  
+
   setup_replication
 
+  # ← right here, after recovery has populated PGDATA, we generate certs
+  setup_ssl
+
   echo "Active mode: starting Postgres"
-  echo "Handing off to wrapper..."
+  echo "Handing off to wrapper…"
   exec /usr/local/bin/wrapper.sh "$@"
 }
 
