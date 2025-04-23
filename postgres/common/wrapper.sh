@@ -15,8 +15,8 @@ if [ ! -f "$SSL_DIR/server.crt" ]; then
   echo "SSL certificates not found - generating new certificates..."
   bash "$INIT_SSL"
 elif ! openssl x509 -noout -checkend 2592000 -in "$SSL_DIR/server.crt"; then
-  echo "Regenerating expiring SSL certificates..."
-  bash "$INIT_SSL"
+    echo "Regenerating expiring SSL certificates..."
+    bash "$INIT_SSL"
 fi
 
 # force local socket usage
