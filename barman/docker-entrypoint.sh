@@ -112,18 +112,22 @@ EOF
 
         sleep 10
 
-        # 1. Start WAL receiver first (required for replication slot check)
+        # 1. Clear any stale streaming state (handles timeline changes after PITR)
+        echo "Clearing stale streaming state..."
+        su - barman -c "rm -rf /var/lib/barman/pg-primary-db/streaming/* 2>/dev/null || true"
+        
+        # 2. Start WAL receiver first (required for replication slot check)
         su - barman -c "barman receive-wal pg-primary-db &"
         echo "Barman receive-wal process started in background."
 
         # Give it a moment to establish connection
         sleep 5
         
-        # 2. Run check (for logging/diagnostics, ignore exit status for initial backup decision)
+        # 3. Run check (for logging/diagnostics, ignore exit status for initial backup decision)
         echo "Running barman check..."
         su - barman -c "barman check pg-primary-db" || echo "Barman check reported issues (see details above)."
         
-        # 3. Check for existing backups
+        # 4. Check for existing backups
         echo "Checking for existing backups..."
         BACKUP_LIST=$(su - barman -c "barman list-backup pg-primary-db" 2>/dev/null || true)
         if ! echo "$BACKUP_LIST" | grep -q '[0-9]\.'; then

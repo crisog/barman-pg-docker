@@ -188,6 +188,7 @@ In Railway dashboard for **barman service**:
    - `POSTGRES_HOST=recovery-pg.railway.internal` (point to PITR instance)
 2. Redeploy barman service
 3. **Verify barman connects** to new primary (recovery-pg)
+   - Barman automatically clears stale streaming state to handle timeline changes
 
 ### Step 5: Update Application Connections
 ```bash
