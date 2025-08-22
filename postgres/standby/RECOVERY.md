@@ -66,11 +66,11 @@ su - barman -c "barman list-backup pg-primary-db"
 ### Step 4: Clear existing data and restore to specific time
 ```bash
 # Clear target data directory
-su - barman -c "ssh -i /var/lib/barman/.ssh/id_rsa root@target-service.railway.internal 'rm -rf /var/lib/postgresql/data/pgdata/*'"
+su - barman -c "ssh -i /var/lib/barman/.ssh/id_ed25519 root@target-service.railway.internal 'rm -rf /var/lib/postgresql/data/pgdata/*'"
 
 # Restore to specific timestamp (UTC format)
 su - barman -c "barman restore \
-  --remote-ssh-command 'ssh -i /var/lib/barman/.ssh/id_rsa root@target-service.railway.internal' \
+  --remote-ssh-command 'ssh -i /var/lib/barman/.ssh/id_ed25519 root@target-service.railway.internal' \
   --target-time '2025-04-23 19:10:00' \
   pg-primary-db latest /var/lib/postgresql/data/pgdata"
 ```

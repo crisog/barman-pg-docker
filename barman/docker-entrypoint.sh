@@ -13,18 +13,18 @@ function customize {
     fi
 
     mkdir -p /root/.ssh
-    printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
-    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
+    printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_ed25519
+    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_ed25519.pub
     printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
     chmod 700 /root/.ssh
-    chmod 600 /root/.ssh/id_* /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/id_ed25519* /root/.ssh/authorized_keys
 
     mkdir -p /var/lib/barman/.ssh
-    printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_rsa
-    printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/id_rsa.pub
+    printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_ed25519
+    printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/id_ed25519.pub
     printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/authorized_keys
     chmod 700 /var/lib/barman/.ssh
-    chmod 600 /var/lib/barman/.ssh/id_* /var/lib/barman/.ssh/authorized_keys
+    chmod 600 /var/lib/barman/.ssh/id_ed25519* /var/lib/barman/.ssh/authorized_keys
     touch /var/lib/barman/.ssh/authorized_keys
     chmod 600 /var/lib/barman/.ssh/authorized_keys
     
@@ -34,7 +34,7 @@ function customize {
 Host *.railway.internal
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
-  IdentityFile /var/lib/barman/.ssh/id_rsa
+  IdentityFile /var/lib/barman/.ssh/id_ed25519
 
 # Primary PostgreSQL hosts
 Host primary-pg.railway.internal primary-pg*

@@ -4,5 +4,5 @@ This repo is based off softwarebrahma's [PostgreSQL-Disaster-Recovery-With-Barma
 
 # Generate Keys
 ```bash
-ssh-keygen -t rsa -b 4096 -m PEM -N "" -f postgres_deployment_key
+ssh-keygen -t ed25519 -a 100 -N "" -f postgres_deployment_key
 ```

@@ -8,19 +8,19 @@ setup_ssh() {
   fi
 
   mkdir -p /root/.ssh
-  printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
-  printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
+  printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_ed25519
+  printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_ed25519.pub
   printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
   chmod 700 /root/.ssh
-  chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
+  chmod 600 /root/.ssh/id_ed25519* /root/.ssh/authorized_keys
 
   su postgres -c "bash -lc '
     mkdir -p ~/.ssh
-    printf \"%s\" \"\$SSH_PRIVATE_KEY\" > ~/.ssh/id_rsa
-    printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/id_rsa.pub
+    printf \"%s\" \"\$SSH_PRIVATE_KEY\" > ~/.ssh/id_ed25519
+    printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/id_ed25519.pub
     printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/authorized_keys
     chmod 700 ~/.ssh
-    chmod 600 ~/.ssh/id_rsa* ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/id_ed25519* ~/.ssh/authorized_keys
   '"
 
   cat > /var/lib/postgresql/.ssh/config <<EOF
