@@ -173,14 +173,22 @@ SELECT pg_create_physical_replication_slot('barman_slot');
 SELECT pg_create_physical_replication_slot('standby_slot');
 ```
 
-### Step 3: Update Standby to Follow Recovery-PG
-In Railway dashboard for **standby service**:
-1. Set environment variables:
-   - `PRIMARY_HOST=recovery-pg.railway.internal` (point to PITR instance)
-   - Keep `MODE=active` (standby mode)
-   - Keep `POSTGRES_PASSWORD`
-2. Redeploy standby service
-3. **Verify standby connects** and starts replicating from recovery-pg
+### Step 3: Clear Standby Volume and Update to Follow Recovery-PG
+The standby needs fresh data from the new primary to avoid timeline conflicts:
+
+1. **Wipe standby volume** in Railway dashboard:
+   - Go to standby service → Click the volume → Settings
+   - Scroll to bottom and click "Wipe volume"
+   - Service will restart automatically with clean volume
+
+2. **Update standby service** in Railway dashboard:
+   - Set environment variables:
+     - `PRIMARY_HOST=recovery-pg.railway.internal` (point to PITR instance)
+     - Keep `MODE=active` (standby mode)
+     - Keep `POSTGRES_PASSWORD`
+   - Redeploy standby service
+
+3. **Verify fresh replication** - standby will perform pg_basebackup from recovery-pg
 
 ### Step 4: Update Barman to Backup Recovery-PG  
 In Railway dashboard for **barman service**:
@@ -205,7 +213,8 @@ DATABASE_URL=postgresql://user:pass@recovery-pg-host:5432/dbname
 ### Critical Notes
 - **Never have two primaries running** - always shut down old primary first
 - **Create replication slots** on recovery-pg before updating services
-- **Update services in order**: shutdown old primary → create slots → standby → barman → update apps
+- **Wipe standby volume** to force fresh pg_basebackup and avoid timeline conflicts
+- **Update services in order**: shutdown old primary → create slots → wipe standby volume → update standby → barman → update apps
 
 ---
 
