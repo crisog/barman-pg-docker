@@ -6,6 +6,7 @@ ENV POSTGRES_PASSWORD="postgres"
 
 ENV POSTGRES_INITDB_ARGS="--data-checksums"
 ENV POSTGRES_HOST_AUTH_METHOD=md5
+ENV PGDATA=/var/lib/postgresql/data/pgdata
 
 RUN apt-get update \
  && apt-get install -y openssh-server rsync \
