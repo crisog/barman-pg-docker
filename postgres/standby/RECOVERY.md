@@ -100,9 +100,14 @@ LOG:  pausing at the end of recovery
 HINT:  Execute pg_wal_replay_resume() to promote.
 ```
 
-Connect to the database and run:
+Connect to the database via Railway's public networking:
+1. **Enable Public Networking**: Go to recovery-pg service → Settings → Public Networking
+2. **Get Connection Details**: Copy the hostname and port provided by Railway
+3. **Connect and Promote**:
 ```sql
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database>
 SELECT pg_wal_replay_resume();
+\q
 ```
 
 This promotes the database from recovery mode to a standalone primary.
@@ -110,15 +115,15 @@ This promotes the database from recovery mode to a standalone primary.
 ### Step 8: Verify recovery point
 ```bash
 # Connect to recovered database and verify it's a primary
-psql -h pitr-host -p 5432 -U postgres -d your_db -c "SELECT pg_is_in_recovery();"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT pg_is_in_recovery();"
 # Should return: f (false = primary, ready for writes)
 
 # Check recovery timestamp and data
-psql -h pitr-host -p 5432 -U postgres -d your_db -c "SELECT pg_postmaster_start_time();"
-psql -h pitr-host -p 5432 -U postgres -d your_db -c "SELECT now();"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT pg_postmaster_start_time();"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT now();"
 
 # Test write access (confirms it's primary)
-psql -h pitr-host -p 5432 -U postgres -d your_db -c "CREATE TABLE recovery_test (id int);"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "CREATE TABLE recovery_test (id int);"
 ```
 
 ---
@@ -127,14 +132,15 @@ psql -h pitr-host -p 5432 -U postgres -d your_db -c "CREATE TABLE recovery_test 
 
 ### Check database status
 ```bash
+# Connect via Railway public networking (enable in service Settings → Public Networking)
 # Check if database is in recovery mode
-psql -h target-host -p 5432 -U postgres -d your_db -c "SELECT pg_is_in_recovery();"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT pg_is_in_recovery();"
 
 # Check database start time
-psql -h target-host -p 5432 -U postgres -d your_db -c "SELECT pg_postmaster_start_time();"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT pg_postmaster_start_time();"
 
 # Check database size and basic connectivity
-psql -h target-host -p 5432 -U postgres -d your_db -c "SELECT pg_database_size(current_database());"
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database> -c "SELECT pg_database_size(current_database());"
 ```
 
 ### Check backup status
@@ -172,13 +178,17 @@ To replace your production primary with the recovered data while maintaining hig
 2. **Verify recovery-pg is healthy** and accepting connections
 
 ### Step 2: Create Missing Replication Slots
-Connect to recovery-pg database and create the missing slots:
+Connect to recovery-pg database via Railway public networking and create the missing slots:
+1. **Enable Public Networking**: Go to recovery-pg service → Settings → Public Networking
+2. **Connect and Create Slots**:
 ```sql
+psql -h <railway-hostname> -p <railway-port> -U postgres -d <database>
 -- Create barman replication slot
 SELECT pg_create_physical_replication_slot('barman_slot');
 
 -- Create standby replication slot  
 SELECT pg_create_physical_replication_slot('standby_slot');
+\q
 ```
 
 ### Step 3: Clear Standby Volume and Update to Follow Recovery-PG
