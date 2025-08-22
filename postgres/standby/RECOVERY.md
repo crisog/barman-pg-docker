@@ -163,7 +163,17 @@ To replace your production primary with the recovered data while maintaining hig
 1. **Stop old primary service** (prevent split-brain scenario)
 2. **Verify recovery-pg is healthy** and accepting connections
 
-### Step 2: Update Standby to Follow Recovery-PG
+### Step 2: Create Missing Replication Slots
+Connect to recovery-pg database and create the missing slots:
+```sql
+-- Create barman replication slot
+SELECT pg_create_physical_replication_slot('barman_slot');
+
+-- Create standby replication slot  
+SELECT pg_create_physical_replication_slot('standby_slot');
+```
+
+### Step 3: Update Standby to Follow Recovery-PG
 In Railway dashboard for **standby service**:
 1. Set environment variables:
    - `PRIMARY_HOST=recovery-pg.railway.internal` (point to PITR instance)
@@ -172,14 +182,14 @@ In Railway dashboard for **standby service**:
 2. Redeploy standby service
 3. **Verify standby connects** and starts replicating from recovery-pg
 
-### Step 3: Update Barman to Backup Recovery-PG  
+### Step 4: Update Barman to Backup Recovery-PG  
 In Railway dashboard for **barman service**:
 1. Set environment variables:
    - `POSTGRES_HOST=recovery-pg.railway.internal` (point to PITR instance)
 2. Redeploy barman service
 3. **Verify barman connects** to new primary (recovery-pg)
 
-### Step 4: Update Application Connections
+### Step 5: Update Application Connections
 ```bash
 # Update your app's DATABASE_URL to point to recovery-pg instance
 DATABASE_URL=postgresql://user:pass@recovery-pg-host:5432/dbname
@@ -193,7 +203,8 @@ DATABASE_URL=postgresql://user:pass@recovery-pg-host:5432/dbname
 
 ### Critical Notes
 - **Never have two primaries running** - always shut down old primary first
-- **Update services in order**: shutdown old primary → standby → barman → update apps
+- **Create replication slots** on recovery-pg before updating services
+- **Update services in order**: shutdown old primary → create slots → standby → barman → update apps
 
 ---
 
