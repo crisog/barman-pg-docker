@@ -1,5 +1,7 @@
 # PostgreSQL Point-in-Time Recovery Guide
 
+**⚠️ EXPERIMENTAL**: This setup is experimental and not recommended for production use. Use at your own risk.
+
 Guide for Point-in-Time Recovery (PITR) using Barman on Railway with Cloudflare R2.
 
 **Use Cases**: 
@@ -56,14 +58,20 @@ In Railway dashboard for the new PITR service:
 2. Redeploy the service
 3. Service starts in idle mode (SSH accessible, PostgreSQL not running)
 
-### Step 3: Determine recovery target
+### Step 3: Access Barman Service
+Before running recovery commands, you need Railway CLI access:
+1. **Install Railway CLI**: Follow [Railway CLI installation guide](https://docs.railway.com/guides/cli)
+2. **Link to Project**: Run `railway link` and select your project
+3. **SSH to Barman**: Run `railway ssh barman` to access the barman service
+
+### Step 4: Determine recovery target
 ```bash
 # Check available backups and WAL timeline
 su - barman -c "barman show-backup pg-primary-db latest"
 su - barman -c "barman list-backup pg-primary-db"
 ```
 
-### Step 4: Clear existing data and restore to specific time
+### Step 5: Clear existing data and restore to specific time
 ```bash
 # Clear target data directory
 su - barman -c "ssh -i /var/lib/barman/.ssh/id_ed25519 root@target-service.railway.internal 'rm -rf /var/lib/postgresql/data/pgdata/*'"
@@ -75,7 +83,7 @@ su - barman -c "barman restore \
   pg-primary-db latest /var/lib/postgresql/data/pgdata"
 ```
 
-### Step 5: Activate as standalone primary
+### Step 6: Activate as standalone primary
 In Railway dashboard for PITR service:
 1. Set environment variables:
    - `MODE=active`
@@ -84,7 +92,7 @@ In Railway dashboard for PITR service:
 2. Redeploy the service
 3. **Database will pause at recovery point** - requires manual promotion
 
-### Step 6: Complete the promotion
+### Step 7: Complete the promotion
 After deployment, the database will show:
 ```
 LOG:  recovery stopping before commit of transaction XXX, time YYYY-MM-DD HH:MM:SS+00
@@ -99,7 +107,7 @@ SELECT pg_wal_replay_resume();
 
 This promotes the database from recovery mode to a standalone primary.
 
-### Step 7: Verify recovery point
+### Step 8: Verify recovery point
 ```bash
 # Connect to recovered database and verify it's a primary
 psql -h pitr-host -p 5432 -U postgres -d your_db -c "SELECT pg_is_in_recovery();"
