@@ -238,7 +238,7 @@ POSTGRES_PASSWORD=<matching_primary_password>
 ### Critical Notes
 - **Always duplicate standby service, never primary service**
 - **Never set `PRIMARY_HOST`** for PITR instances (keeps them standalone)
-- **No promotion command needed** - automatic primary when no `PRIMARY_HOST`
+- **Manual promotion required** - run `SELECT pg_wal_replay_resume();` after restore
 - **Production replication stays untouched** during PITR process
 
 ---
