@@ -21,6 +21,8 @@ RUN mkdir -p /var/lib/barman && chown barman:barman /var/lib/barman \
 	&& chown -R barman: /etc/barman.conf \
 	&& echo "" >> /etc/cron.d/barman \
 	&& echo "0 * * * * barman /usr/bin/barman backup pg-primary-db" > /etc/cron.d/barmanpgbackup && echo "" >> /etc/cron.d/barmanpgbackup \
+	&& printf "SHELL=/bin/bash\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n* * * * * barman /usr/bin/barman cron >> /var/log/barman/cron.log 2>&1\n" > /etc/cron.d/barman-cron \
+	&& chmod 0644 /etc/cron.d/barman-cron \
 	&& touch /etc/crontab /etc/cron.*/* \
 	&& sed -i.bak 's_^.*compression = gzip_compression = gzip_' /etc/barman.conf \
 	&& sed -i.bak 's-^.*immediate_checkpoint = false-immediate_checkpoint = true-' /etc/barman.conf \

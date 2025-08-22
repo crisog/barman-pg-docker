@@ -81,35 +81,35 @@ retention_policy_mode = auto
 retention_policy     = RECOVERY WINDOW OF 7 days
 wal_retention_policy = main
 
-# Cloud hooks - sync WALs and backups to S3/R2
-# Ensure R2_ACCOUNT_ID and R2_BUCKET are set
-pre_archive_retry_script = /usr/bin/barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/wal-archives pg-primary-db \\\${WAL_FILE}
-post_backup_retry_script = /usr/bin/barman-cloud-backup --cloud-provider aws-s3 --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --aws-profile barman-cloud s3://${R2_BUCKET}/base-backups pg-primary-db
+# Cloud hooks - sync WALs and backups to S3-compatible cloud storage (AWS S3, Cloudflare R2, MinIO, etc.)
+# Ensure ENDPOINT_URL and BUCKET_NAME are set
+pre_archive_retry_script = /usr/bin/barman-cloud-wal-archive -v --gzip --cloud-provider aws-s3 --endpoint-url ${ENDPOINT_URL} --aws-profile barman-cloud s3://${BUCKET_NAME}/wal-archives pg-primary-db >> /var/log/barman/wal-cloud-upload.log 2>&1 || true
+post_backup_retry_script = /usr/bin/barman-cloud-backup -v --gzip --cloud-provider aws-s3 --endpoint-url ${ENDPOINT_URL} --aws-profile barman-cloud s3://${BUCKET_NAME}/base-backups pg-primary-db >> /var/log/barman/backup-cloud-upload.log 2>&1
 EOF
         
         chown barman:barman /etc/barman.d/pg-primary-db.conf
         chmod 600 /etc/barman.d/pg-primary-db.conf
         
-        echo "primary-pg.railway.internal:*:*:barman:$BARMAN_HASHED_PASS" > /var/lib/barman/.pgpass
+        echo "${POSTGRES_HOST}:*:*:barman:$BARMAN_HASHED_PASS" > /var/lib/barman/.pgpass
         chmod 0600 /var/lib/barman/.pgpass
         chown barman:barman /var/lib/barman/.pgpass
         
         echo "PostgreSQL password configured with proper MD5 hash"
     fi
 
-    if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+    if [ -n "$ACCESS_KEY_ID" ] && [ -n "$SECRET_ACCESS_KEY" ]; then
         mkdir -p /var/lib/barman/.aws
         cat > /var/lib/barman/.aws/credentials <<EOF
 [barman-cloud]
-aws_access_key_id     = ${AWS_ACCESS_KEY_ID}
-aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+aws_access_key_id     = ${ACCESS_KEY_ID}
+aws_secret_access_key = ${SECRET_ACCESS_KEY}
 EOF
         chmod 700 /var/lib/barman/.aws
         chmod 600 /var/lib/barman/.aws/credentials
         chown -R barman:barman /var/lib/barman/.aws
-        echo "AWS/R2 credentials configured"
+        echo "S3-compatible cloud storage credentials configured"
     else
-        echo "Warning: AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set; cloud backups will not work"
+        echo "Warning: ACCESS_KEY_ID or SECRET_ACCESS_KEY not set; S3-compatible cloud backups will not work"
     fi
 
     if [ "$1" = "barman" ]; then
@@ -130,10 +130,12 @@ EOF
         
         # 3. Check for existing backups and run initial if needed, regardless of check status
         echo "Checking for existing backups..."
-        if ! su - barman -c "barman list-backup pg-primary-db" | grep -q '[0-9]\.'; then
+        BACKUP_LIST=$(su - barman -c "barman list-backup pg-primary-db" 2>/dev/null || true)
+        if ! echo "$BACKUP_LIST" | grep -q '[0-9]\.'; then
             echo "No backups found — launching initial base backup (this may take a while)..."
             sleep 30
-            if su - barman -c "barman backup pg-primary-db"; then
+            # Use --wait flag to ensure backup completes before cloud upload
+            if su - barman -c "barman backup --wait pg-primary-db"; then
                 echo "Initial base backup completed successfully."
             else
                 echo "Warning: Initial base backup failed. Check Barman logs."
