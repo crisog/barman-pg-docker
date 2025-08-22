@@ -57,16 +57,44 @@ setup_replication() {
   local PRIMARY_HOST=${PRIMARY_HOST:-postgres-primary}
   local REPLICATION_USER=${REPLICATION_USER:-replicator}
   
-  local REPLICATION_PASSWORD_HASH=$(hash_password "${POSTGRES_PASSWORD:-postgres}" "$REPLICATION_USER")
+  # Use the same MD5 hash as created on the primary
+  local REPLICATION_PASSWORD=$(hash_password "${POSTGRES_PASSWORD:-postgres}" "$REPLICATION_USER")
 
   echo "Setting up replication configuration..."
 
-  cat > "$PGDATA/postgresql.auto.conf" <<EOF
+  # Check if data directory is empty (needs initial backup)
+  if [ ! -f "$PGDATA/PG_VERSION" ]; then
+    echo "No existing data found. Running pg_basebackup from primary..."
+    
+    # Create .pgpass file for authentication
+    echo "$PRIMARY_HOST:5432:*:$REPLICATION_USER:$REPLICATION_PASSWORD" > ~/.pgpass
+    chmod 0600 ~/.pgpass
+    
+    # Run pg_basebackup to get initial data
+    pg_basebackup -h "$PRIMARY_HOST" -p 5432 -U "$REPLICATION_USER" -D "$PGDATA" -W -R -X stream -S standby_slot
+    
+    # Clean up .pgpass
+    rm -f ~/.pgpass
+    
+    echo "pg_basebackup completed successfully."
+  else
+    echo "Existing data found, skipping pg_basebackup."
+  fi
+
+  # Ensure standby.signal file exists (required for PostgreSQL 12+)
+  touch "$PGDATA/standby.signal"
+
+  # Update replication configuration
+  cat >> "$PGDATA/postgresql.auto.conf" <<EOF
+
 # Replication configuration
-primary_conninfo = 'host=$PRIMARY_HOST user=$REPLICATION_USER password=$REPLICATION_PASSWORD_HASH application_name=standby'
-restore_command = ''
+primary_conninfo = 'host=$PRIMARY_HOST port=5432 user=$REPLICATION_USER password=$REPLICATION_PASSWORD application_name=standby'
 primary_slot_name = 'standby_slot'
+restore_command = ''
 EOF
+
+  # Set proper ownership
+  chown -R postgres:postgres "$PGDATA"
 
   echo "Replication configuration complete."
 }
@@ -94,10 +122,17 @@ main() {
     exec tail -f /dev/null
   fi
 
+  # Only set up replication if PRIMARY_HOST is specified
+  if [ -n "$PRIMARY_HOST" ]; then
+    echo "PRIMARY_HOST specified: setting up as streaming standby"
+    setup_replication
+  else
+    echo "No PRIMARY_HOST: running as standalone instance"
+    # For standalone, ensure we don't have standby.signal
+    rm -f "$PGDATA/standby.signal"
+  fi
+
   setup_custom_config
-
-  setup_replication
-
   setup_ssl
 
   echo "Active mode: starting Postgres"

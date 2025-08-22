@@ -1,6 +1,6 @@
 FROM postgres:16
 
-ENV PGDATA=/var/lib/postgresql/data \
+ENV PGDATA=/var/lib/postgresql/data/pgdata \
     DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
