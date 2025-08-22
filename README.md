@@ -2,7 +2,9 @@
 
 **⚠️ EXPERIMENTAL**: This setup is experimental and not recommended for production use. Use at your own risk.
 
-This repo is based off softwarebrahma's [PostgreSQL-Disaster-Recovery-With-Barman](https://github.com/softwarebrahma/PostgreSQL-Disaster-Recovery-With-Barman/tree/master)
+This repo is based off:
+- softwarebrahma's [PostgreSQL-Disaster-Recovery-With-Barman](https://github.com/softwarebrahma/PostgreSQL-Disaster-Recovery-With-Barman/tree/master)
+- Railway's official [postgres-ssl template](https://github.com/railwayapp-templates/postgres-ssl) for SSL configuration and Railway-specific scripts
 
 # Generate Keys
 ```bash
