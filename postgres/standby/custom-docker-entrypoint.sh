@@ -2,28 +2,23 @@
 set -e
 
 setup_ssh() {
-  mkdir -p /root/.ssh
-  if [ -n "$SSH_PRIVATE_KEY" ]; then
-    printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
-    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
-    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
-  else
-    ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa
-    cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+  if [ -z "$SSH_PRIVATE_KEY" ] || [ -z "$SSH_PUBLIC_KEY" ]; then
+    echo "ERROR: SSH_PRIVATE_KEY and SSH_PUBLIC_KEY environment variables are required but not set"
+    exit 1
   fi
+
+  mkdir -p /root/.ssh
+  printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
+  printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
+  printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
   chmod 700 /root/.ssh
   chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
 
   su postgres -c "bash -lc '
     mkdir -p ~/.ssh
-    if [ -n \"\$SSH_PRIVATE_KEY\" ]; then
-      printf \"%s\" \"\$SSH_PRIVATE_KEY\" > ~/.ssh/id_rsa
-      printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/id_rsa.pub
-      printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/authorized_keys
-    else
-      ssh-keygen -t rsa -N \"\" -f ~/.ssh/id_rsa
-      cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
-    fi
+    printf \"%s\" \"\$SSH_PRIVATE_KEY\" > ~/.ssh/id_rsa
+    printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/id_rsa.pub
+    printf \"%s\" \"\$SSH_PUBLIC_KEY\"  > ~/.ssh/authorized_keys
     chmod 700 ~/.ssh
     chmod 600 ~/.ssh/id_rsa* ~/.ssh/authorized_keys
   '"

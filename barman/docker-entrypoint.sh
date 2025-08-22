@@ -7,42 +7,42 @@ function customize {
     mkdir -p /var/lib/barman 
     chown -R barman:barman /var/lib/barman
 
-    mkdir -p /root/.ssh
-    if [ -n "$SSH_PRIVATE_KEY" ]; then
-        printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
-        printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
-        printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
-    else
-        ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
-        cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+    if [ -z "$SSH_PRIVATE_KEY" ] || [ -z "$SSH_PUBLIC_KEY" ]; then
+        echo "ERROR: SSH_PRIVATE_KEY and SSH_PUBLIC_KEY environment variables are required but not set"
+        exit 1
     fi
+
+    mkdir -p /root/.ssh
+    printf "%s" "$SSH_PRIVATE_KEY" > /root/.ssh/id_rsa
+    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/id_rsa.pub
+    printf "%s" "$SSH_PUBLIC_KEY"  > /root/.ssh/authorized_keys
     chmod 700 /root/.ssh
-    chmod 600 /root/.ssh/id_rsa* /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/id_* /root/.ssh/authorized_keys
 
     mkdir -p /var/lib/barman/.ssh
-    if [ -n "$SSH_PRIVATE_KEY" ]; then
-        printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_rsa
-        printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/id_rsa.pub
-        printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/authorized_keys
-    else
-        cp /root/.ssh/id_rsa /var/lib/barman/.ssh/id_rsa
-        cp /root/.ssh/id_rsa.pub /var/lib/barman/.ssh/id_rsa.pub
-        cp /root/.ssh/authorized_keys /var/lib/barman/.ssh/authorized_keys
-    fi
+    printf "%s" "$SSH_PRIVATE_KEY" > /var/lib/barman/.ssh/id_rsa
+    printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/id_rsa.pub
+    printf "%s" "$SSH_PUBLIC_KEY"  > /var/lib/barman/.ssh/authorized_keys
     chmod 700 /var/lib/barman/.ssh
-    chmod 600 /var/lib/barman/.ssh/id_rsa* /var/lib/barman/.ssh/authorized_keys
+    chmod 600 /var/lib/barman/.ssh/id_* /var/lib/barman/.ssh/authorized_keys
     touch /var/lib/barman/.ssh/authorized_keys
     chmod 600 /var/lib/barman/.ssh/authorized_keys
     
     # Create comprehensive SSH config for barman user only
     cat > /var/lib/barman/.ssh/config <<EOF
+# All Railway internal hosts
+Host *.railway.internal
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+  IdentityFile /var/lib/barman/.ssh/id_rsa
+
 # Primary PostgreSQL hosts
 Host primary-pg.railway.internal primary-pg*
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
 
-# Standby PostgreSQL hosts  
-Host standby-pg.railway.internal postgrespg.railway.internal standby*
+# Standby and recovery PostgreSQL hosts  
+Host standby-pg.railway.internal recovery-pg.railway.internal postgrespg.railway.internal standby* recovery*
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
 EOF
