@@ -1,19 +1,26 @@
 #!/bin/bash
 set -e
 
+# Ensure required passwords are set
+if [ -z "$BARMAN_PASSWORD" ]; then
+    echo "ERROR: BARMAN_PASSWORD environment variable is required but not set"
+    exit 1
+fi
+
+if [ -z "$REPLICATOR_PASSWORD" ]; then
+    echo "ERROR: REPLICATOR_PASSWORD environment variable is required but not set"
+    exit 1
+fi
+
 BARMAN_USER=barman
-BARMAN_PASS=$( echo -n "md5${POSTGRES_PASSWORD}${BARMAN_USER}" \
-               | md5sum | cut -d' ' -f1 )
 
 REPL_USER=replicator
-REPL_PASS=$( echo -n "md5${POSTGRES_PASSWORD}${REPL_USER}" \
-              | md5sum | cut -d' ' -f1 )
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
   DO \$\$
   BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$BARMAN_USER') THEN
-      CREATE USER $BARMAN_USER WITH LOGIN REPLICATION PASSWORD '$BARMAN_PASS';
+      CREATE USER $BARMAN_USER WITH LOGIN REPLICATION PASSWORD '$BARMAN_PASSWORD';
     END IF;
   END
   \$\$;
@@ -26,13 +33,21 @@ psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 
   GRANT pg_read_all_settings TO $BARMAN_USER;
   GRANT pg_read_all_stats    TO $BARMAN_USER;
+  
+  DO \$\$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pg_checkpoint') THEN
+      GRANT pg_checkpoint TO $BARMAN_USER;
+    END IF;
+  END
+  \$\$;
 EOSQL
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
   DO \$\$
   BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$REPL_USER') THEN
-      CREATE USER $REPL_USER WITH LOGIN REPLICATION PASSWORD '$REPL_PASS';
+      CREATE USER $REPL_USER WITH LOGIN REPLICATION PASSWORD '$REPLICATOR_PASSWORD';
     END IF;
   END
   \$\$;

@@ -1,12 +1,6 @@
 #!/bin/bash
 set -e
 
-hash_password() {
-    local password="$1"
-    local username="$2"
-    echo -n "md5${password}${username}" | md5sum | cut -d' ' -f1
-}
-
 setup_ssh() {
   mkdir -p /root/.ssh
   if [ -n "$SSH_PRIVATE_KEY" ]; then
@@ -57,8 +51,13 @@ setup_replication() {
   local PRIMARY_HOST=${PRIMARY_HOST:-postgres-primary}
   local REPLICATION_USER=${REPLICATION_USER:-replicator}
   
-  # Use the same MD5 hash as created on the primary
-  local REPLICATION_PASSWORD=$(hash_password "${POSTGRES_PASSWORD:-postgres}" "$REPLICATION_USER")
+  # Use separate REPLICATOR_PASSWORD for replication authentication
+  local REPLICATION_PASSWORD="${REPLICATOR_PASSWORD}"
+  
+  if [ -z "$REPLICATION_PASSWORD" ]; then
+    echo "ERROR: REPLICATOR_PASSWORD not set. Cannot configure replication."
+    exit 1
+  fi
 
   echo "Setting up replication configuration..."
 
@@ -71,7 +70,7 @@ setup_replication() {
     chmod 0600 ~/.pgpass
     
     # Run pg_basebackup to get initial data
-    pg_basebackup -h "$PRIMARY_HOST" -p 5432 -U "$REPLICATION_USER" -D "$PGDATA" -W -R -X stream -S standby_slot
+    pg_basebackup -h "$PRIMARY_HOST" -p 5432 -U "$REPLICATION_USER" -D "$PGDATA" -R -X stream -S standby_slot
     
     # Clean up .pgpass
     rm -f ~/.pgpass

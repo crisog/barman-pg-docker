@@ -1,13 +1,6 @@
 #!/bin/bash
 set -e
 
-# Function to hash passwords the same way as the DB init script
-hash_password() {
-    local password="$1"
-    local username="$2"
-    echo -n "md5${password}${username}" | md5sum | cut -d' ' -f1
-}
-
 function customize {
     # Ensure the main Barman directory exists and has correct permissions
     # This is important if /var/lib/barman is mounted as a volume
@@ -63,14 +56,17 @@ EOF
 
     mkdir -p /etc/barman.d
 
-    if [ -n "$POSTGRES_PASSWORD" ]; then
-        BARMAN_HASHED_PASS=$(hash_password "$POSTGRES_PASSWORD" "barman")
-        
-        cat > /etc/barman.d/pg-primary-db.conf <<EOF
+    if [ -z "$BARMAN_PASSWORD" ]; then
+        echo "ERROR: BARMAN_PASSWORD environment variable is required but not set"
+        exit 1
+    fi
+    
+    # Use separate BARMAN_PASSWORD for barman user authentication
+    cat > /etc/barman.d/pg-primary-db.conf <<EOF
 [pg-primary-db]
 description = "Primary PostgreSQL on Railway"
-conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS
-streaming_conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=$BARMAN_HASHED_PASS replication=true
+conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=${BARMAN_PASSWORD}
+streaming_conninfo = host=${POSTGRES_HOST} user=barman dbname=${POSTGRES_DB} password=${BARMAN_PASSWORD} replication=true
 streaming_archiver = on
 archiver = off
 backup_method = postgres
@@ -86,16 +82,15 @@ wal_retention_policy = main
 pre_archive_retry_script = /usr/bin/barman-cloud-wal-archive -v --gzip --cloud-provider aws-s3 --endpoint-url ${ENDPOINT_URL} --aws-profile barman-cloud s3://${BUCKET_NAME}/wal-archives pg-primary-db >> /var/log/barman/wal-cloud-upload.log 2>&1 || true
 post_backup_retry_script = /usr/bin/barman-cloud-backup -v --gzip --cloud-provider aws-s3 --endpoint-url ${ENDPOINT_URL} --aws-profile barman-cloud s3://${BUCKET_NAME}/base-backups pg-primary-db >> /var/log/barman/backup-cloud-upload.log 2>&1
 EOF
-        
-        chown barman:barman /etc/barman.d/pg-primary-db.conf
-        chmod 600 /etc/barman.d/pg-primary-db.conf
-        
-        echo "${POSTGRES_HOST}:*:*:barman:$BARMAN_HASHED_PASS" > /var/lib/barman/.pgpass
-        chmod 0600 /var/lib/barman/.pgpass
-        chown barman:barman /var/lib/barman/.pgpass
-        
-        echo "PostgreSQL password configured with proper MD5 hash"
-    fi
+    
+    chown barman:barman /etc/barman.d/pg-primary-db.conf
+    chmod 600 /etc/barman.d/pg-primary-db.conf
+    
+    echo "${POSTGRES_HOST}:*:*:barman:${BARMAN_PASSWORD}" > /var/lib/barman/.pgpass
+    chmod 0600 /var/lib/barman/.pgpass
+    chown barman:barman /var/lib/barman/.pgpass
+    
+    echo "Barman authentication configured"
 
     if [ -n "$ACCESS_KEY_ID" ] && [ -n "$SECRET_ACCESS_KEY" ]; then
         mkdir -p /var/lib/barman/.aws
@@ -121,19 +116,33 @@ EOF
         su - barman -c "barman receive-wal pg-primary-db &"
         echo "Barman receive-wal process started in background."
 
-        # Give it a moment to potentially initialize the slot
-        sleep 2 
+        # Give it a moment to establish connection
+        sleep 5
         
         # 2. Run check (for logging/diagnostics, ignore exit status for initial backup decision)
         echo "Running barman check..."
         su - barman -c "barman check pg-primary-db" || echo "Barman check reported issues (see details above)."
         
-        # 3. Check for existing backups and run initial if needed, regardless of check status
+        # 3. Check for existing backups
         echo "Checking for existing backups..."
         BACKUP_LIST=$(su - barman -c "barman list-backup pg-primary-db" 2>/dev/null || true)
         if ! echo "$BACKUP_LIST" | grep -q '[0-9]\.'; then
-            echo "No backups found — launching initial base backup (this may take a while)..."
-            sleep 30
+            echo "No backups found — preparing for initial backup..."
+            
+            # Switch WAL and capture the file name Barman expects
+            echo "Forcing WAL switch and waiting for archive to complete..."
+            WALFILE=$(su - barman -c "barman switch-wal --archive pg-primary-db" 2>/dev/null | awk '/WAL file/ {print $6}')
+            
+            if [ -n "$WALFILE" ]; then
+                echo "Waiting for WAL file $WALFILE to be archived..."
+                sleep 30
+            else
+                echo "Could not capture WAL file name, waiting for streaming to stabilize..."
+                sleep 30
+            fi
+            
+            # Now perform the initial backup
+            echo "Launching initial base backup (this may take a while)..."
             # Use --wait flag to ensure backup completes before cloud upload
             if su - barman -c "barman backup --wait pg-primary-db"; then
                 echo "Initial base backup completed successfully."
@@ -141,7 +150,7 @@ EOF
                 echo "Warning: Initial base backup failed. Check Barman logs."
             fi
         else
-            echo "Existing backups found."
+            echo "Existing backups found — skipping WAL initialization."
         fi
     fi
 
