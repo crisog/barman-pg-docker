@@ -1,4 +1,4 @@
-FROM postgres:16
+FROM postgres:17.6
 
 ENV POSTGRES_USER="postgres"
 ENV POSTGRES_DB="postgres"

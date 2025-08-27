@@ -1,4 +1,4 @@
-FROM postgres:16
+FROM postgres:17.6
 
 ENV PGDATA=/var/lib/postgresql/data/pgdata \
     DEBIAN_FRONTEND=noninteractive
